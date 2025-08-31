@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Inventario de Materiales</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            opacity: 1;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 4px solid #3498db;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Style for the history section */
+        details > summary {
+            cursor: pointer;
+            list-style: none; /* Hide default marker */
+        }
+        details > summary::-webkit-details-marker {
+            display: none; /* Hide marker in Chrome/Safari */
+        }
+        details > summary::before {
+            content: '▶'; /* Custom marker */
+            margin-right: 0.5rem;
+            display: inline-block;
+            transition: transform 0.2s;
+        }
+        details[open] > summary::before {
+            transform: rotate(90deg);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <!-- Page Header -->
+        <header class="text-center mb-10">
+            <h1 class="text-3xl sm:text-4xl font-bold text-gray-900">Control de Inventario de Materiales</h1>
+            <p class="text-md sm:text-lg text-gray-600 mt-2">Gestiona el inventario por línea, busca materiales y genera reportes.</p>
+        </header>
+
+        <!-- Material Search Section -->
+        <section class="mb-12 bg-white p-6 rounded-xl shadow-lg border border-gray-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Buscador de Materiales</h2>
+            <input type="text" id="material-search-input" placeholder="Buscar por código o descripción..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition mb-4">
+            <div id="material-search-results" class="overflow-x-auto max-h-96 overflow-y-auto">
+                <p class="text-gray-500 p-4 text-center">Ingrese un término de búsqueda para ver los materiales.</p>
+            </div>
+        </section>
+
+        <!-- Main container for line cards -->
+        <main class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8" id="inventory-cards">
+            <!-- Card for LPL01 -->
+            <section data-linea="LPL01" class="bg-white p-6 rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition-shadow duration-300">
+                <h2 class="text-2xl font-bold mb-4 border-b-2 border-blue-500 pb-2 text-blue-600">LPL01</h2>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <label class="font-medium text-gray-700">FLEJE</label>
+                        <input type="number" data-name="FLEJE" min="0" value="0" class="w-28 p-2 border border-gray-300 rounded-md text-right focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <label class="font-medium text-gray-700">ESP 10 LB</label>
+                        <input type="number" data-name="ESP 10 LB" min="0" value="0" class="w-28 p-2 border border-gray-300 rounded-md text-right focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <label class="font-medium text-gray-700">ESP 20/400</label>
+                        <input type="number" data-name="ESP 20/400" min="0" value="0" class="w-28 p-2 border border-gray-300 rounded-md text-right focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <label class="font-medium text-gray-700">RIBBON BLACK</label>
+                        <input type="number" data-name="RIBBON BLACK" min="0" value="0" class="w-28 p-2 border border-gray-300 rounded-md text-right focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <label class="font-medium text-gray-700">FUNDA 18*23</label>
+                        <input type="number" data-name="FUNDA 18*23" min="0" value="0" class="w-28 p-2 border border-gray-300 rounded-md text-right focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <label class="font-medium text-gray-700">FUNDA 20*29</label>
+                        <input type="number" data-name="FUNDA 20*29" min="0" value="0" class="w-28 p-2 border border-gray-300 rounded-md text-right focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <label class="font-medium text-gray-700">TERMOENCOGIBLE</label>
+                        <input type="number" data-name="TERMOENCOGIBLE" min="0" value="0" class="w-28 p-2 border border-gray-300 rounded-md text-right focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    </div>
+                </div>
+            </section>
+            <!-- Card for LPL02 -->
+            <section data-linea="LPL02" class="bg-white p-6 rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition-shadow duration-300">
+                <h2 class="text-2xl font-bold mb-4 border-b-2 border-green-500 pb-2 text-green-600">LPL02</h2>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <label class="font-medium text-gray-700">FLEJE</label>
+                        <input type="number" data-name="FLEJE" min="0" value="0" class="w-28 p-2 border border-gray-300 rounded-md text-right focus:ring-2 focus:ring-green-500 focus:border-green-500 transition">
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <label class="font-medium text-gray-700">ESP 10 LB</label>
+                        <input type="number" data-name="ESP 10 LB" min="0" value="0" class="w-28 p-2 border border-gray-300 rounded-md text-right focus:ring-2 focus:ring-green-500 focus:border-green-500 transition">
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <label class="font-medium text-gray-700">ESP 20/400</label>
+                        <input type="number" data-name="ESP 20/400" min="0" value="0" class="w-28 p-2 border border-gray-300 rounded-md text-right focus:ring-2 focus:ring-green-500 focus:border-green-500 transition">
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <label class="font-medium text-gray-700">RIBBON BLACK</label>
+                        <input type="number" data-name="RIBBON BLACK" min="0" value="0" class="w-28 p-2 border border-gray-300 rounded-md text-right focus:ring-2 focus:ring-green-500 focus:border-green-500 transition">
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <label class="font-medium text-gray-700">FUNDA 20*29</label>
+                        <input type="number" data-name="FUNDA 20*29" min="0" value="0" class="w-28 p-2 border border-gray-300 rounded-md text-right focus:ring-2 focus:ring-green-500 focus:border-green-500 transition">
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <label class="font-medium text-gray-700">TERMOENCOGIBLE</label>
+                        <input type="number" data-name="TERMOENCOGIBLE" min="0" value="0" class="w-28 p-2 border border-gray-300 rounded-md text-right focus:ring-2 focus:ring-green-500 focus:border-green-500 transition">
+                    </div>
+                </div>
+            </section>
+            <!-- Card for LFI01 -->
+            <section data-linea="LFI01" class="bg-white p-6 rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition-shadow duration-300">
+                <h2 class="text-2xl font-bold mb-4 border-b-2 border-red-500 pb-2 text-red-600">LFI01</h2>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <label class="font-medium text-gray-700">FLEJE</label>
+                        <input type="number" data-name="FLEJE" min="0" value="0" class="w-28 p-2 border border-gray-300 rounded-md text-right focus:ring-2 focus:ring-red-500 focus:border-red-500 transition">
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <label class="font-medium text-gray-700">FUNDA DE 10 LB</label>
+                        <input type="number" data-name="FUNDA DE 10 LB" min="0" value="0" class="w-28 p-2 border border-gray-300 rounded-md text-right focus:ring-2 focus:ring-red-500 focus:border-red-500 transition">
+                    </div>
+                </div>
+            </section>
+            <!-- Card for LFI02 -->
+            <section data-linea="LFI02" class="bg-white p-6 rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition-shadow duration-300">
+                <h2 class="text-2xl font-bold mb-4 border-b-2 border-purple-500 pb-2 text-purple-600">LFI02</h2>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <label class="font-medium text-gray-700">FLEJE</label>
+                        <input type="number" data-name="FLEJE" min="0" value="0" class="w-28 p-2 border border-gray-300 rounded-md text-right focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition">
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <label class="font-medium text-gray-700">FUNDA DE 10 LB</label>
+                        <input type="number" data-name="FUNDA DE 10 LB" min="0" value="0" class="w-28 p-2 border border-gray-300 rounded-md text-right focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition">
+                    </div>
+                </div>
+            </section>
+            <!-- Card for EMPAQUE MANUAL -->
+            <section data-linea="EMPAQUE MANUAL" class="bg-white p-6 rounded-xl shadow-lg border border-gray-200 md:col-span-2 xl:col-span-1 hover:shadow-xl transition-shadow duration-300">
+                <h2 class="text-2xl font-bold mb-4 border-b-2 border-yellow-500 pb-2 text-yellow-600">EMPAQUE MANUAL</h2>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <label class="font-medium text-gray-700">CINTA TRANSPARENTE</label>
+                        <input type="number" data-name="CINTA TRANSPARENTE" min="0" value="0" class="w-28 p-2 border border-gray-300 rounded-md text-right focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition">
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <label class="font-medium text-gray-700">FUNDA 20*29</label>
+                        <input type="number" data-name="FUNDA 20*29" min="0" value="0" class="w-28 p-2 border border-gray-300 rounded-md text-right focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition">
+                    </div>
+                    <div class="flex justify-between items-center gap-2">
+                        <label class="font-medium text-gray-700" title="FUNDA DE FIDEOS FINO 200 GR PRINCESA">F. FIDEOS FINO 200GR</label>
+                        <input type="number" data-name="FUNDA DE FIDEOS FINO 200 GR PRINCESA" min="0" value="0" class="w-28 p-2 border border-gray-300 rounded-md text-right focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition">
+                    </div>
+                    <div class="flex justify-between items-center gap-2">
+                        <label class="font-medium text-gray-700" title="FUNDA FIDEO NIDO DE 350 GR PRINCESA">F. FIDEO NIDO 350GR</label>
+                        <input type="number" data-name="FUNDA FIDEO NIDO DE 350 GR PRINCESA" min="0" value="0" class="w-28 p-2 border border-gray-300 rounded-md text-right focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition">
+                    </div>
+                    <div class="flex justify-between items-center gap-2">
+                        <label class="font-medium text-gray-700" title="FUNDA DE FIDEOS FINO 350 GR PRINCESA">F. FIDEOS FINO 350GR</label>
+                        <input type="number" data-name="FUNDA DE FIDEOS FINO 350 GR PRINCESA" min="0" value="0" class="w-28 p-2 border border-gray-300 rounded-md text-right focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition">
+                    </div>
+                </div>
+            </section>
+        </main>
+        
+        <!-- Totals Summary Section -->
+        <section class="mt-12 bg-white p-6 rounded-xl shadow-lg border border-gray-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Resumen Total de Materiales (En Planta)</h2>
+            <div id="totals-output" class="overflow-x-auto">
+                <!-- The totals table will be generated here by JS -->
+            </div>
+        </section>
+
+        <!-- AI and Logging Section -->
+        <section class="mt-8 bg-white p-6 rounded-xl shadow-lg border border-gray-200">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Acciones y Registros</h2>
+            <p class="text-gray-600 mb-6">Utilice los botones para generar informes o para guardar un registro del estado actual del inventario.</p>
+            <div class="flex flex-wrap gap-4">
+                <button id="generate-report-btn" class="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition-all duration-300 shadow-md flex items-center justify-center gap-2 flex-grow sm:flex-grow-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9a9 9 0 1 1-9-9Z"></path></svg>
+                    ✨ Generar Informe IA
+                </button>
+                <button id="register-inventory-btn" class="bg-green-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-700 transition-all duration-300 shadow-md flex items-center justify-center gap-2 flex-grow sm:flex-grow-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M8 7a.5.5 0 0 1 .5.5V9H10a.5.5 0 0 1 0 1H8.5v1.5a.5.5 0 0 1-1 0V10H6a.5.5 0 0 1 0 -1h1.5V7.5A.5.5 0 0 1 8 7z"/><path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2-2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1z"/></svg>
+                    Registrar Inventario Actual
+                </button>
+            </div>
+            <p id="register-feedback" class="text-green-600 font-medium mt-2 hidden">¡Inventario registrado con éxito!</p>
+
+            <div id="loading-indicator" class="hidden mt-6 flex flex-col items-center">
+                <div class="loader"></div>
+                <p class="text-gray-600 mt-2">Analizando inventario y generando el informe...</p>
+            </div>
+
+            <div id="report-output-container" class="hidden mt-6">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="text-xl font-semibold text-gray-700">Informe Generado por IA</h3>
+                    <button id="copy-report-btn" class="bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition-all duration-300 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1-1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/><path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3z"/></svg>
+                        Copiar
+                    </button>
+                </div>
+                <pre id="report-output" class="bg-gray-100 p-4 rounded-lg border border-gray-200 whitespace-pre-wrap font-mono text-sm"></pre>
+                <p id="copy-feedback" class="text-green-600 font-medium mt-2 hidden">¡Informe copiado al portapapeles!</p>
+            </div>
+            <div id="error-message" class="hidden mt-6 text-red-600 bg-red-100 p-4 rounded-lg"></div>
+        </section>
+
+        <!-- Historical Log Section -->
+        <section class="mt-8 bg-white p-6 rounded-xl shadow-lg border border-gray-200">
+             <h2 class="text-2xl font-bold text-gray-800 mb-4">Registro Histórico de Inventario</h2>
+             <div id="log-container" class="space-y-4">
+                 <p class="text-gray-500">Aún no hay registros. Presiona "Registrar Inventario Actual" para empezar.</p>
+             </div>
+        </section>
+
+    </div>
+
+    <script>
+        // --- DATABASE (Rebuilt and verified from the user's final text list with corrections) ---
+        const materialDatabase = [
+            { codigo: '2136', descripcion: 'STRETCH FILM MANUAL 18X1500 (FLEJE)', cantidad: '2 KG' },
+            { codigo: '2272', descripcion: 'ROLLOS ESPAGUETIS LIDER 400 GR', cantidad: '17.2 KG' },
+            { codigo: '2075', descripcion: 'FUNDAS TRANSPARENTE LISA 20X29 C-250', cantidad: '400 FUNDA' },
+            { codigo: '2088', descripcion: 'FUNDAS FIDEO NIDO 10 LBS PRINCESA 1/600', cantidad: '17.5 KG' },
+            { codigo: '2092', descripcion: 'FUNDAS TRANSPARENTE LISA 18X23 1/500 (BASTONES)', cantidad: '500 UD' },
+            { codigo: '2013', descripcion: 'FUNDAS FIDEO PELON 200 GR PRINCESA', cantidad: '8.75 KG' },
+            { codigo: '2259', descripcion: 'FUNDAS FIDEO PELO DE ANGEL PRINCESA 10 LBS', cantidad: '15.5 KG' },
+            { codigo: '2271', descripcion: 'RIBBON BLACK (55MM X 1100 MT) (MORADA)', cantidad: '1100 MT' },
+            { codigo: '2127', descripcion: 'ROLLOS ESPAGUETIS PRINCESA 1/2 200 GR', cantidad: '18.2 KG' },
+            { codigo: '2131', descripcion: 'ROLLOS ESPAGUETIS DIANA 350 GR', cantidad: '16.5 KG' },
+            { codigo: '2094', descripcion: 'CINTA TRANSPARENTE', cantidad: '110 YDS' },
+            { codigo: '2097', descripcion: 'TERMONECOGIBLE PASTA LARGA ABIERTO A 1 LADO', cantidad: '28 KG' },
+            { codigo: '2109', descripcion: 'ROLLOS ESPAGUETIS PRINCESA 400 GR', cantidad: '16.50 KG' },
+            { codigo: '2111', descripcion: 'ROLLOS ESPAGUETIS PADOVA 350 GR', cantidad: '17.50 KG' },
+            { codigo: '2182', descripcion: 'FUNDAS FIDEO NIDO PRINCESA 350 GR', cantidad: '9.20 KG' },
+            { codigo: '2183', descripcion: 'FUNDAS FIDEO FINO PRINCESA 350 GR', cantidad: '9.10 KG' },
+            { codigo: '2188', descripcion: 'LABEL 1.1875" X 0.8750" (PEQUEÑO)', cantidad: '2000 UD' },
+            { codigo: '2189', descripcion: 'ROLLOS LINGUINI PRINCESA 350 GR', cantidad: '18.20 KG' },
+            { codigo: '2257', descripcion: 'FUNDAS FIDEO FINO PRINCESA 10 LBS', cantidad: '15.50 KG' },
+            { codigo: '2277', descripcion: 'LABEL 1.46875" X 2.375 (GRANDE)', cantidad: '1000 UD' },
+            { codigo: '2285', descripcion: 'RIBBON VIDEOJET 30MM X 700 MT 15-U30KQ25-700', cantidad: '700 MT' },
+            { codigo: '2286', descripcion: 'ROLLOS ESPAGUETIS PADOVA 200 GR', cantidad: '18.20 KG' },
+            { codigo: '2298', descripcion: 'RIBBON BLACK 55MM X 1000 MT 15-555KQ10-1000 STANDARD', cantidad: '1000 MT' },
+            { codigo: '2302', descripcion: 'ROLLOS ESPAGUETIS SELECTOS 400 GR', cantidad: '16.50 KG' },
+            { codigo: '2455', descripcion: 'ROLLOS ESPAGUETIS ZERCA 400 GR', cantidad: '16.50 KG' },
+            { codigo: '7129', descripcion: 'ACEITE FDA PARA CAÑAS FGL-40', cantidad: '5 GL' },
+            { codigo: '2108', descripcion: 'ROLLOS SPAGUETTIS PRINCESA 10 LBS', cantidad: '19 KG' },
+            { codigo: '2060', descripcion: 'FUNDAS SIX PACK PEQUEÑO 12X17 1/500', cantidad: '20 KG' },
+            { codigo: '2089', descripcion: 'FUNDAS FIDEO NIDO 350 GR PADOVA 1/600', cantidad: '4.90 KG' }
+        ];
+
+        // --- DOM Elements ---
+        const generateBtn = document.getElementById('generate-report-btn');
+        const registerBtn = document.getElementById('register-inventory-btn');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const reportContainer = document.getElementById('report-output-container');
+        const reportOutput = document.getElementById('report-output');
+        const errorMessage = document.getElementById('error-message');
+        const copyBtn = document.getElementById('copy-report-btn');
+        const copyFeedback = document.getElementById('copy-feedback');
+        const registerFeedback = document.getElementById('register-feedback');
+        const totalsOutput = document.getElementById('totals-output');
+        const logContainer = document.getElementById('log-container');
+        const allInputs = document.querySelectorAll('input[type="number"]');
+        const searchInput = document.getElementById('material-search-input');
+        const searchResultsContainer = document.getElementById('material-search-results');
+
+        // Application State
+        let inventoryLogs = [];
+        
+        // --- Event Listeners ---
+        generateBtn.addEventListener('click', generateReport);
+        registerBtn.addEventListener('click', logCurrentInventory);
+        copyBtn.addEventListener('click', copyReportToClipboard);
+        allInputs.forEach(input => input.addEventListener('input', calculateAndDisplayTotals));
+        searchInput.addEventListener('input', handleMaterialSearch);
+        
+        // --- Init Functions ---
+        document.addEventListener('DOMContentLoaded', () => {
+             calculateAndDisplayTotals();
+        });
+
+        // --- Material Search Functions ---
+        function handleMaterialSearch(event) {
+            const searchTerm = event.target.value.toLowerCase().trim();
+            if (!searchTerm) {
+                searchResultsContainer.innerHTML = '<p class="text-gray-500 p-4 text-center">Ingrese un término de búsqueda para ver los materiales.</p>';
+                return;
+            }
+
+            const filteredMaterials = materialDatabase.filter(material => 
+                material.descripcion.toLowerCase().includes(searchTerm) ||
+                material.codigo.includes(searchTerm)
+            );
+            renderSearchResults(filteredMaterials, searchTerm);
+        }
+
+        function renderSearchResults(materials, searchTerm) {
+            searchResultsContainer.innerHTML = ''; // Clear previous results
+
+            if (materials.length === 0) {
+                searchResultsContainer.innerHTML = '<p class="text-gray-500 p-4 text-center">No se encontraron materiales.</p>';
+                return;
+            }
+            
+            // Function to escape special characters for regex
+            const escapeRegExp = (string) => {
+                return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            };
+
+            const table = document.createElement('table');
+            table.className = 'w-full text-left border-collapse';
+            
+            const thead = document.createElement('thead');
+            thead.innerHTML = `
+                <tr class="bg-gray-100">
+                    <th class="p-3 font-semibold text-gray-700 border-b-2 border-gray-200">Código</th>
+                    <th class="p-3 font-semibold text-gray-700 border-b-2 border-gray-200">Descripción</th>
+                    <th class="p-3 font-semibold text-gray-700 border-b-2 border-gray-200 text-right">Cantidad/Peso</th>
+                </tr>
+            `;
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+            const regex = new RegExp(`(${escapeRegExp(searchTerm)})`, 'gi');
+
+            materials.forEach(material => {
+                const row = document.createElement('tr');
+                row.className = 'even:bg-gray-50';
+
+                const highlightedCodigo = material.codigo.replace(regex, `<mark class="bg-yellow-200 rounded px-1">$1</mark>`);
+                const highlightedDescripcion = material.descripcion.replace(regex, `<mark class="bg-yellow-200 rounded px-1">$1</mark>`);
+                
+                row.innerHTML = `
+                    <td class="p-3 text-gray-800 border-b border-gray-200 font-mono">${highlightedCodigo}</td>
+                    <td class="p-3 text-gray-800 border-b border-gray-200">${highlightedDescripcion}</td>
+                    <td class="p-3 text-gray-900 border-b border-gray-200 text-right font-bold">${material.cantidad}</td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            table.appendChild(tbody);
+            searchResultsContainer.appendChild(table);
+        }
+
+        // --- Totals and Logging Functions ---
+        function calculateAndDisplayTotals() {
+            const totals = {};
+            allInputs.forEach(input => {
+                const name = input.dataset.name;
+                const quantity = parseInt(input.value, 10) || 0;
+                totals[name] = (totals[name] || 0) + quantity;
+            });
+
+            totalsOutput.innerHTML = ''; // Clear previous view
+
+            if (Object.keys(totals).length === 0) {
+                 totalsOutput.innerHTML = '<p class="text-gray-500">Los totales del inventario en planta aparecerán aquí.</p>';
+                 return;
+            }
+
+            const table = document.createElement('table');
+            table.className = 'w-full text-left border-collapse';
+            
+            const thead = document.createElement('thead');
+            thead.innerHTML = `
+                <tr class="bg-gray-100">
+                    <th class="p-3 font-semibold text-gray-700 border-b-2 border-gray-200">Material</th>
+                    <th class="p-3 font-semibold text-gray-700 border-b-2 border-gray-200 text-right">Cantidad Total</th>
+                </tr>
+            `;
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+            const sortedMaterials = Object.keys(totals).sort();
+
+            sortedMaterials.forEach(material => {
+                const total = totals[material];
+                const row = document.createElement('tr');
+                row.className = 'even:bg-gray-50';
+                row.innerHTML = `
+                    <td class="p-3 text-gray-800 border-b border-gray-200">${material}</td>
+                    <td class="p-3 text-gray-900 border-b border-gray-200 text-right font-bold">${total}</td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            table.appendChild(tbody);
+            totalsOutput.appendChild(table);
+        }
+        
+        function logCurrentInventory() {
+            const timestamp = new Date();
+            const snapshot = {};
+            const sections = document.querySelectorAll('#inventory-cards section');
+
+            sections.forEach(section => {
+                const lineName = section.dataset.linea;
+                snapshot[lineName] = [];
+                const inputs = section.querySelectorAll('input[type="number"]');
+                inputs.forEach(input => {
+                    snapshot[lineName].push({
+                        material: input.dataset.name,
+                        quantity: parseInt(input.value, 10) || 0
+                    });
+                });
+            });
+
+            inventoryLogs.unshift({ timestamp, data: snapshot });
+            renderLogs();
+
+            registerFeedback.classList.remove('hidden');
+            setTimeout(() => registerFeedback.classList.add('hidden'), 2500);
+        }
+
+        function renderLogs() {
+            logContainer.innerHTML = ''; // Clear
+            if (inventoryLogs.length === 0) {
+                logContainer.innerHTML = '<p class="text-gray-500">Aún no hay registros.</p>';
+                return;
+            }
+            
+            inventoryLogs.forEach(log => {
+                const logEntry = document.createElement('details');
+                logEntry.className = 'bg-gray-50 border border-gray-200 rounded-lg';
+
+                const summary = document.createElement('summary');
+                summary.className = 'p-4 font-semibold text-gray-800';
+                summary.textContent = `Registro del ${log.timestamp.toLocaleString('es-DO', { dateStyle: 'long', timeStyle: 'short' })}`;
+
+                const content = document.createElement('div');
+                content.className = 'p-4 border-t border-gray-200';
+                
+                let htmlContent = '<ul class="space-y-2">';
+                for (const line in log.data) {
+                    htmlContent += `<li class="font-medium text-gray-700">${line}:</li>`;
+                    htmlContent += '<ul class="pl-6 list-disc list-inside space-y-1">';
+                    log.data[line].forEach(item => {
+                         htmlContent += `<li class="text-sm text-gray-600">${item.material}: <strong>${item.quantity}</strong></li>`;
+                    });
+                     htmlContent += '</ul>';
+                }
+                htmlContent += '</ul>';
+                
+                content.innerHTML = htmlContent;
+
+                logEntry.appendChild(summary);
+                logEntry.appendChild(content);
+                logContainer.appendChild(logEntry);
+            });
+        }
+
+
+        // --- Gemini and UI Helper Functions ---
+        
+        function copyReportToClipboard() {
+            const textToCopy = reportOutput.textContent;
+            const textArea = document.createElement('textarea');
+            textArea.value = textToCopy;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                copyFeedback.classList.remove('hidden');
+                setTimeout(() => copyFeedback.classList.add('hidden'), 2000);
+            } catch (err) {
+                console.error('Error al copiar el texto: ', err);
+            }
+            document.body.removeChild(textArea);
+        }
+
+        async function generateReport() {
+            loadingIndicator.classList.remove('hidden');
+            reportContainer.classList.add('hidden');
+            errorMessage.classList.add('hidden');
+            errorMessage.textContent = '';
+
+            let inventoryDataString = '';
+            document.querySelectorAll('#inventory-cards section').forEach(section => {
+                const title = section.querySelector('h2').textContent;
+                inventoryDataString += `${title}:\n`;
+                section.querySelectorAll('input[type="number"]').forEach(input => {
+                    inventoryDataString += `- ${input.dataset.name}: ${input.value || '0'}\n`;
+                });
+                inventoryDataString += '\n';
+            });
+            
+            const systemPrompt = "Eres un asistente de gestión de inventario para una fábrica. Tu tarea es analizar los datos de stock y generar un informe claro y conciso en español.";
+            const userQuery = `Basado en los siguientes niveles de stock de materiales, genera un informe de reabastecimiento.
+            El informe debe tener dos secciones:
+            1.  **Estado General del Inventario**: Un resumen en una tabla o lista que muestre cada línea de producción con sus materiales y la cantidad actual.
+            2.  **Solicitud de Reabastecimiento**: Una lista de todos los materiales cuya cantidad sea 20 o menos. Para cada uno de estos materiales, indica la línea a la que pertenece, la cantidad actual y una sugerencia de "REORDENAR".
+            
+            Formatea la respuesta de manera profesional y fácil de leer.
+
+            Datos del inventario actual:
+            ${inventoryDataString}`;
+
+            const apiKey = ""; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+            };
+            
+            let retries = 3;
+            let success = false;
+            while (retries > 0 && !success) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Error en la API: ${response.statusText}`);
+                    }
+
+                    const result = await response.json();
+                    const candidate = result.candidates?.[0];
+
+                    if (candidate && candidate.content?.parts?.[0]?.text) {
+                        reportOutput.textContent = candidate.content.parts[0].text;
+                        reportContainer.classList.remove('hidden');
+                        success = true;
+                    } else {
+                        throw new Error("La respuesta de la API no tuvo el formato esperado.");
+                    }
+                } catch (error) {
+                    console.error('Error al generar el informe:', error);
+                    retries--;
+                    if (retries === 0) {
+                        errorMessage.textContent = `Error al generar el informe: ${error.message}. Por favor, inténtelo de nuevo.`;
+                        errorMessage.classList.remove('hidden');
+                    } else {
+                        await new Promise(res => setTimeout(res, (3 - retries) * 1000));
+                    }
+                }
+            }
+            loadingIndicator.classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
+

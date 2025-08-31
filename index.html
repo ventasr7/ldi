@@ -56,8 +56,8 @@
 
         <!-- Material Search Section -->
         <section class="mb-12 bg-white p-6 rounded-xl shadow-lg border border-gray-200">
-            <h2 class="text-2xl font-bold text-gray-800 mb-4">Buscador de Materiales</h2>
-            <input type="text" id="material-search-input" placeholder="Buscar por código o descripción..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition mb-4">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Buscador Inteligente de Materiales</h2>
+            <input type="text" id="material-search-input" placeholder="Busca por nombre, código o abreviatura (ej: 'ESP')..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition mb-4">
             <div id="material-search-results" class="overflow-x-auto max-h-96 overflow-y-auto">
                 <p class="text-gray-500 p-4 text-center">Ingrese un término de búsqueda para ver los materiales.</p>
             </div>
@@ -304,6 +304,52 @@
         });
 
         // --- Material Search Functions ---
+
+        /**
+         * Calculates a relevance score for a material based on search terms.
+         * @param {object} material - The material object from the database.
+         * @param {string} originalSearchTerm - The full, original search query.
+         * @param {string[]} searchTokens - The search query split into individual words.
+         * @returns {number} The calculated relevance score.
+         */
+        function calculateRelevance(material, originalSearchTerm, searchTokens) {
+            let score = 0;
+            const desc = material.descripcion.toLowerCase();
+            const code = material.codigo.toLowerCase();
+            const fullText = `${desc} ${code}`;
+
+            // Big bonus for a full, direct inclusion to prioritize exact matches
+            if (fullText.includes(originalSearchTerm)) {
+                score += 100;
+            }
+
+            const materialTokens = fullText.split(/\s+/);
+
+            searchTokens.forEach(token => {
+                // Specific alias for "esp" -> "espaguetis" or "spaguetis"
+                if (token === 'esp') {
+                    if (materialTokens.some(mt => mt.startsWith('espagueti') || mt.startsWith('spaguetti'))) {
+                        score += 25; // High score for this specific rule
+                    }
+                }
+
+                // General token matching
+                materialTokens.forEach(materialToken => {
+                    if (materialToken.includes(token)) {
+                        // If it's a perfect word match, score higher
+                        if (materialToken === token) {
+                            score += 10;
+                        } else {
+                            // It's a partial match (e.g., "fideo" in "fideos")
+                            score += 5;
+                        }
+                    }
+                });
+            });
+
+            return score;
+        }
+
         function handleMaterialSearch(event) {
             const searchTerm = event.target.value.toLowerCase().trim();
             if (!searchTerm) {
@@ -311,14 +357,20 @@
                 return;
             }
 
-            const filteredMaterials = materialDatabase.filter(material => 
-                material.descripcion.toLowerCase().includes(searchTerm) ||
-                material.codigo.includes(searchTerm)
-            );
-            renderSearchResults(filteredMaterials, searchTerm);
+            const searchTokens = searchTerm.split(/\s+/).filter(t => t.length > 0);
+
+            const scoredMaterials = materialDatabase.map(material => {
+                const score = calculateRelevance(material, searchTerm, searchTokens);
+                return { ...material, score };
+            }).filter(material => material.score > 0);
+
+            // Sort by score in descending order
+            scoredMaterials.sort((a, b) => b.score - a.score);
+
+            renderSearchResults(scoredMaterials, searchTokens);
         }
 
-        function renderSearchResults(materials, searchTerm) {
+        function renderSearchResults(materials, searchTokens) {
             searchResultsContainer.innerHTML = ''; // Clear previous results
 
             if (materials.length === 0) {
@@ -326,10 +378,7 @@
                 return;
             }
             
-            // Function to escape special characters for regex
-            const escapeRegExp = (string) => {
-                return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            };
+            const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
             const table = document.createElement('table');
             table.className = 'w-full text-left border-collapse';
@@ -345,7 +394,12 @@
             table.appendChild(thead);
 
             const tbody = document.createElement('tbody');
-            const regex = new RegExp(`(${escapeRegExp(searchTerm)})`, 'gi');
+            
+            let highlightTokens = [...searchTokens];
+            if (searchTokens.includes('esp')) {
+                highlightTokens.push('espagueti', 'spaguetti');
+            }
+            const regex = new RegExp(`(${highlightTokens.map(escapeRegExp).join('|')})`, 'gi');
 
             materials.forEach(material => {
                 const row = document.createElement('tr');
@@ -566,5 +620,3 @@
     </script>
 </body>
 </html>
-
-

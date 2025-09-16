@@ -3,303 +3,179 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Administrador de Finanzas y Facturación</title>
+    <title>Para Mi Amor</title>
+    
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" xintegrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Montserrat:wght@300;400;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
     <style>
-        body { font-family: 'Inter', sans-serif; }
-        .fade-in { animation: fadeIn 0.5s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #e5e7eb; }
-        ::-webkit-scrollbar-thumb { background: #9ca3af; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
-        .modal-overlay {
-            transition: opacity 0.3s ease-in-out;
+        /* Custom styles */
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: #1a1a1a; /* Un fondo oscuro y elegante */
+        }
+        .font-handwriting {
+            font-family: 'Great Vibes', cursive;
+        }
+        
+        /* Animación de entrada */
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+        }
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Efecto de brillo en el corazón */
+        .heart-glow {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                text-shadow: 0 0 5px #ff005d, 0 0 10px #ff005d;
+            }
+            50% {
+                transform: scale(1.1);
+                text-shadow: 0 0 10px #ff005d, 0 0 20px #ff005d, 0 0 30px #ff005d;
+            }
+            100% {
+                transform: scale(1);
+                text-shadow: 0 0 5px #ff005d, 0 0 10px #ff005d;
+            }
         }
     </style>
 </head>
-<body class="bg-gray-100 text-gray-800">
+<body class="text-white overflow-x-hidden">
 
-    <div class="container mx-auto p-4 md:p-8 max-w-5xl">
-        <header class="text-center mb-8">
-            <h1 class="text-3xl md:text-4xl font-bold text-gray-900">Administrador de Finanzas</h1>
-            <p class="text-gray-600 mt-2">Registra tus ingresos, controla tus gastos y genera facturas.</p>
-        </header>
-
-        <div id="resumen-general" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <div class="bg-white p-6 rounded-xl shadow-md border"><h2 class="text-lg font-semibold text-gray-500">Total Ingresos</h2><p id="total-ingresos" class="text-2xl font-bold text-green-600 mt-2">$0.00</p></div>
-            <div class="bg-white p-6 rounded-xl shadow-md border"><h2 class="text-lg font-semibold text-gray-500">Total Gastos</h2><p id="total-gastos" class="text-2xl font-bold text-red-600 mt-2">$0.00</p></div>
-            <div class="bg-white p-6 rounded-xl shadow-md border border-blue-500"><h2 class="text-lg font-semibold text-gray-500">Balance Final</h2><p id="balance-general" class="text-2xl font-bold text-blue-600 mt-2">$0.00</p></div>
+    <!-- Hero Section -->
+    <header class="h-screen w-full flex flex-col justify-center items-center text-center bg-cover bg-center" style="background-image: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('5.jpeg');">
+        <h1 class="font-handwriting text-7xl md:text-9xl text-white drop-shadow-lg">Nuestro Amor</h1>
+        <p class="mt-4 text-xl md:text-2xl text-gray-200 font-light max-w-2xl mx-auto">Una historia escrita en las estrellas y vivida en nuestros corazones.</p>
+        <div class="mt-12">
+            <i class="fas fa-chevron-down text-4xl text-white animate-bounce"></i>
         </div>
+    </header>
 
-        <div class="flex flex-col md:flex-row justify-center items-center gap-4 mb-8">
-            <button id="btn-agregar-ingreso" class="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-transform transform hover:scale-105">
-                + Agregar Nuevo Cuadro de Ingreso
-            </button>
-            <button id="btn-generar-factura" class="w-full md:w-auto bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-transform transform hover:scale-105">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block -mt-1 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd" /></svg>
-                Generar Factura
-            </button>
-        </div>
+    <!-- Main Content -->
+    <main class="container mx-auto px-6 py-20">
 
-        <div id="contenedor-ingresos" class="space-y-6"></div>
-    </div>
+        <!-- Sección de Poema o Mensaje -->
+        <section class="reveal text-center max-w-3xl mx-auto my-16">
+            <i class="fas fa-quote-left text-4xl text-pink-400 mb-4"></i>
+            <h2 class="font-handwriting text-5xl md:text-6xl mb-6 text-pink-300">Un Verso para Ti</h2>
+            <p class="text-lg md:text-xl text-gray-300 leading-relaxed">
+                "En el lienzo de mis días, tú eres el color más brillante. En la melodía de mi vida, eres la nota más dulce. Cada momento contigo es un tesoro que guardo en el alma."
+            </p>
+            <i class="fas fa-quote-right text-4xl text-pink-400 mt-4 float-right"></i>
+        </section>
 
-    <!-- Plantilla para un nuevo ingreso -->
-    <template id="plantilla-ingreso">
-        <div class="ingreso-item bg-white p-6 rounded-xl shadow-lg border border-gray-200 fade-in">
-            <div class="flex justify-between items-start mb-4 border-b pb-4">
-                <div class="flex-grow grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Descripción del Ingreso</label>
-                        <input type="text" class="descripcion-ingreso mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-lg" placeholder="Ej: Salario Quincenal">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Monto del Ingreso</label>
-                        <input type="number" class="monto-ingreso mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-lg" placeholder="Ej: 30000" min="0">
+        <!-- Sección de Galería de Recuerdos -->
+        <section class="reveal my-24">
+            <h2 class="font-handwriting text-center text-5xl md:text-6xl mb-12 text-pink-300">Galería de Nuestros Momentos</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                <!-- Imagen 1 -->
+                <div class="group relative overflow-hidden rounded-lg shadow-xl transform hover:scale-105 transition-transform duration-300">
+                    <img src="1.jpeg" alt="Recuerdo 1" class="w-full h-full object-cover">
+                    <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <p class="text-white text-xl font-bold">TE AMO TANTO</p>
                     </div>
                 </div>
-                <button class="btn-eliminar-item text-gray-400 hover:text-red-600 hover:bg-red-100 rounded-full p-2 transition ml-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                </button>
-            </div>
-            <div class="gastos-seccion">
-                <h4 class="text-md font-semibold text-gray-800 mb-3">Gastos / Deducciones</h4>
-                <div class="lista-gastos space-y-2 mb-4"></div>
-                <div class="form-agregar-gasto grid grid-cols-1 md:grid-cols-5 gap-3 items-center">
-                    <input type="text" class="gasto-descripcion md:col-span-3 p-2 border border-gray-300 rounded-md shadow-sm" placeholder="Descripción del consumo">
-                    <input type="number" class="gasto-monto md:col-span-1 p-2 border border-gray-300 rounded-md shadow-sm" placeholder="Monto" min="0">
-                    <button class="btn-agregar-gasto md:col-span-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-md transition">Agregar</button>
+                <!-- Imagen 2 -->
+                <div class="group relative overflow-hidden rounded-lg shadow-xl transform hover:scale-105 transition-transform duration-300">
+                    <img src="2.jpeg" alt="Recuerdo 2" class="w-full h-full object-cover">
+                    <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <p class="text-white text-xl font-bold">MI ESPOSA</p>
+                    </div>
+                </div>
+                <!-- Imagen 3 -->
+                <div class="group relative overflow-hidden rounded-lg shadow-xl transform hover:scale-105 transition-transform duration-300">
+                    <img src="3.jpeg" alt="Recuerdo 3" class="w-full h-full object-cover">
+                    <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <p class="text-white text-xl font-bold">MI REINA</p>
+                    </div>
+                </div>
+                 <!-- Imagen 4 -->
+                <div class="group relative overflow-hidden rounded-lg shadow-xl transform hover:scale-105 transition-transform duration-300">
+                    <img src="4.jpeg" alt="Recuerdo 4" class="w-full h-full object-cover">
+                    <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <p class="text-white text-xl font-bold">PRINCESA</p>
+                    </div>
+                </div>
+                 <!-- Imagen 5 -->
+                <div class="group relative overflow-hidden rounded-lg shadow-xl transform hover:scale-105 transition-transform duration-300">
+                    <img src="5.jpeg" alt="Recuerdo 5" class="w-full h-full object-cover">
+                    <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <p class="text-white text-xl font-bold">MI PRINCESA </p>
+                    </div>
+                </div>
+                 <!-- Imagen 6 -->
+                <div class="group relative overflow-hidden rounded-lg shadow-xl transform hover:scale-105 transition-transform duration-300">
+                    <img src="6.jpeg" alt="Recuerdo 6" class="w-full h-full object-cover">
+                    <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <p class="text-white text-xl font-bold">AMOR</p>
+                    </div>
                 </div>
             </div>
-            <div class="resumen-item mt-6 border-t pt-4 flex flex-col md:flex-row justify-between items-center text-center md:text-left">
-                <div class="text-sm text-gray-500"><p>Ingreso: <span class="total-item-ingreso font-medium text-green-700">$0.00</span></p><p>Gastos: <span class="total-item-gastos font-medium text-red-700">$0.00</span></p></div>
-                <div class="mt-4 md:mt-0"><p class="text-lg font-semibold text-gray-800">Balance Restante:</p><p class="balance-item-valor text-2xl font-bold text-blue-700">$0.00</p></div>
+        </section>
+        
+        <!-- Sección de Nuestra Historia -->
+        <section class="reveal my-24 bg-gray-800 bg-opacity-40 p-8 md:p-12 rounded-lg shadow-2xl">
+            <h2 class="font-handwriting text-center text-5xl md:text-6xl mb-8 text-pink-300">Nuestra Historia</h2>
+            <div class="flex flex-col md:flex-row items-center gap-8">
+                <div class="md:w-1/2 text-gray-300 text-lg leading-relaxed">
+                    <p class="mb-4">Todo comenzó un día que parecía ordinario, pero que el destino había marcado como el inicio de algo extraordinario. Desde esa primera conversación, supimos que había una conexión especial.</p>
+                    <p class="mb-4">Hemos compartido risas que nos han hecho llorar y hemos sido el apoyo del otro en momentos difíciles. Cada paso, cada aventura, ha fortalecido este lazo que nos une.</p>
+                    <p>Esta no es solo una historia de amor, es nuestra historia. Y lo mejor de todo... es que apenas está comenzando.</p>
+                </div>
+                <div class="md:w-1/2 flex justify-center">
+                    <i class="fas fa-infinity text-9xl text-pink-400 opacity-70"></i>
+                </div>
             </div>
-        </div>
-    </template>
+        </section>
 
-    <!-- Modal para la Factura -->
-    <div id="modal-factura" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4 hidden modal-overlay">
-        <div class="bg-white rounded-lg shadow-2xl w-full max-w-3xl max-h-full overflow-y-auto">
-            <div id="factura-contenido" class="p-8 md:p-12"></div>
-            <div class="px-8 py-4 bg-gray-50 border-t flex flex-col md:flex-row justify-end items-center gap-4">
-                <button id="btn-cerrar-modal" class="w-full md:w-auto bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg">Cerrar</button>
-                <button id="btn-descargar-pdf" class="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Descargar PDF</button>
-            </div>
-        </div>
-    </div>
+    </main>
 
+    <!-- Footer -->
+    <footer class="text-center py-10 bg-black bg-opacity-30">
+        <p class="text-2xl mb-4">Con todo mi amor, para ti.</p>
+        <i class="fas fa-heart text-4xl text-pink-500 heart-glow"></i>
+        <p class="mt-4 text-gray-400 text-sm">Hecho con el corazón &copy; 2024</p>
+    </footer>
 
     <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const btnAgregarIngreso = document.getElementById('btn-agregar-ingreso');
-        const contenedorIngresos = document.getElementById('contenedor-ingresos');
-        const plantillaIngreso = document.getElementById('plantilla-ingreso');
-        const btnGenerarFactura = document.getElementById('btn-generar-factura');
-        const modalFactura = document.getElementById('modal-factura');
-        const btnCerrarModal = document.getElementById('btn-cerrar-modal');
-        const btnDescargarPdf = document.getElementById('btn-descargar-pdf');
+        // Script para animaciones de entrada al hacer scroll
+        document.addEventListener('DOMContentLoaded', () => {
+            const revealElements = document.querySelectorAll('.reveal');
 
-        const formatearMoneda = (valor) => new Intl.NumberFormat('es-DO', { style: 'currency', currency: 'DOP' }).format(valor);
-        
-        // --- LÓGICA DE ALMACENAMIENTO ---
-        const guardarDatos = () => {
-            const data = [];
-            document.querySelectorAll('.ingreso-item').forEach(item => {
-                const ingreso = {
-                    descripcion: item.querySelector('.descripcion-ingreso').value,
-                    monto: item.querySelector('.monto-ingreso').value,
-                    gastos: []
-                };
-                item.querySelectorAll('.gasto-item').forEach(gastoItem => {
-                    ingreso.gastos.push({
-                        descripcion: gastoItem.dataset.descripcion,
-                        monto: gastoItem.dataset.monto
-                    });
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible');
+                        observer.unobserve(entry.target);
+                    }
                 });
-                data.push(ingreso);
-            });
-            localStorage.setItem('finanzasData', JSON.stringify(data));
-        };
-
-        const cargarDatos = () => {
-            const dataGuardada = localStorage.getItem('finanzasData');
-            if (dataGuardada) {
-                const data = JSON.parse(dataGuardada);
-                if (data.length === 0) {
-                   crearCuadroIngreso(); // Si no hay datos, crea uno vacío
-                } else {
-                    data.forEach(ingreso => crearCuadroIngreso(ingreso));
-                }
-            } else {
-                crearCuadroIngreso(); // Si es la primera vez, crea un cuadro vacío
-            }
-            actualizarCalculosGenerales();
-        };
-
-        const actualizarCalculosGenerales = () => {
-            let totalIngresosGeneral = 0, totalGastosGeneral = 0;
-            document.querySelectorAll('.ingreso-item').forEach(item => {
-                const montoIngreso = parseFloat(item.querySelector('.monto-ingreso').value) || 0;
-                let totalGastosItem = 0;
-                item.querySelectorAll('.gasto-item').forEach(gasto => {
-                    totalGastosItem += parseFloat(gasto.dataset.monto) || 0;
-                });
-                const balanceItem = montoIngreso - totalGastosItem;
-
-                item.querySelector('.total-item-ingreso').textContent = formatearMoneda(montoIngreso);
-                item.querySelector('.total-item-gastos').textContent = formatearMoneda(totalGastosItem);
-                const balanceValorEl = item.querySelector('.balance-item-valor');
-                balanceValorEl.textContent = formatearMoneda(balanceItem);
-                balanceValorEl.classList.toggle('text-red-700', balanceItem < 0);
-                balanceValorEl.classList.toggle('text-blue-700', balanceItem >= 0);
-
-                totalIngresosGeneral += montoIngreso;
-                totalGastosGeneral += totalGastosItem;
+            }, {
+                threshold: 0.1
             });
 
-            const balanceGeneral = totalIngresosGeneral - totalGastosGeneral;
-            document.getElementById('total-ingresos').textContent = formatearMoneda(totalIngresosGeneral);
-            document.getElementById('total-gastos').textContent = formatearMoneda(totalGastosGeneral);
-            const balanceGeneralEl = document.getElementById('balance-general');
-            balanceGeneralEl.textContent = formatearMoneda(balanceGeneral);
-            balanceGeneralEl.classList.toggle('text-red-600', balanceGeneral < 0);
-            balanceGeneralEl.classList.toggle('text-blue-600', balanceGeneral >= 0);
-        };
-
-        const crearCuadroIngreso = (data = null) => {
-            const clon = plantillaIngreso.content.cloneNode(true);
-            const nuevoCuadro = clon.querySelector('.ingreso-item');
-            if (data) {
-                nuevoCuadro.querySelector('.descripcion-ingreso').value = data.descripcion || '';
-                nuevoCuadro.querySelector('.monto-ingreso').value = data.monto || '';
-                if (data.gastos) {
-                    data.gastos.forEach(gasto => {
-                        agregarGastoElemento(nuevoCuadro, gasto.descripcion, gasto.monto);
-                    });
-                }
-            }
-            contenedorIngresos.appendChild(nuevoCuadro);
-        };
-
-        const agregarGastoElemento = (cuadroIngreso, descripcion, monto) => {
-            const listaGastos = cuadroIngreso.querySelector('.lista-gastos');
-            const nuevoGasto = document.createElement('div');
-            nuevoGasto.className = 'gasto-item flex justify-between items-center bg-gray-50 p-2 rounded-md fade-in';
-            nuevoGasto.dataset.monto = monto;
-            nuevoGasto.dataset.descripcion = descripcion;
-            nuevoGasto.innerHTML = `<span>${descripcion}</span><div class="flex items-center gap-2"><span class="font-medium text-gray-700">${formatearMoneda(monto)}</span><button class="btn-eliminar-gasto text-gray-400 hover:text-red-500 transition"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button></div>`;
-            listaGastos.appendChild(nuevoGasto);
-        };
-        
-        btnAgregarIngreso.addEventListener('click', () => {
-            crearCuadroIngreso();
-            guardarDatos();
-            actualizarCalculosGenerales();
-        });
-
-        contenedorIngresos.addEventListener('click', (e) => {
-            const target = e.target;
-            const ingresoItem = target.closest('.ingreso-item');
-
-            if (target.classList.contains('btn-agregar-gasto')) {
-                const form = target.closest('.form-agregar-gasto');
-                const descripcionInput = form.querySelector('.gasto-descripcion');
-                const montoInput = form.querySelector('.gasto-monto');
-                const descripcion = descripcionInput.value.trim();
-                const monto = parseFloat(montoInput.value) || 0;
-
-                if (descripcion && monto > 0) {
-                    agregarGastoElemento(ingresoItem, descripcion, monto);
-                    descripcionInput.value = '';
-                    montoInput.value = '';
-                    descripcionInput.focus();
-                    actualizarCalculosGenerales();
-                    guardarDatos();
-                }
-            }
-
-            if (target.closest('.btn-eliminar-gasto')) {
-                target.closest('.gasto-item').remove();
-                actualizarCalculosGenerales();
-                guardarDatos();
-            }
-
-            if (target.closest('.btn-eliminar-item')) {
-                ingresoItem.remove();
-                actualizarCalculosGenerales();
-                guardarDatos();
-            }
-        });
-
-        contenedorIngresos.addEventListener('input', (e) => {
-            if (e.target.classList.contains('monto-ingreso') || e.target.classList.contains('descripcion-ingreso')) {
-                actualizarCalculosGenerales();
-                guardarDatos();
-            }
-        });
-
-        // --- LÓGICA DE LA FACTURA ---
-        const generarContenidoFactura = () => {
-            const facturaContenido = document.getElementById('factura-contenido');
-            const fecha = new Date();
-            let html = `
-                <div class="text-center mb-8">
-                    <h1 class="text-3xl font-bold">FACTURA</h1>
-                    <p class="text-gray-500">Fecha de Emisión: ${fecha.toLocaleDateString('es-DO')}</p>
-                </div>
-                <div class="border-b mb-8 pb-8">
-                    <h2 class="text-xl font-bold mb-4">Resumen de Transacciones</h2>
-                </div>
-            `;
-            let totalIngresos = 0, totalGastos = 0;
-
-            document.querySelectorAll('.ingreso-item').forEach((item, index) => {
-                const descIngreso = item.querySelector('.descripcion-ingreso').value || `Ingreso #${index + 1}`;
-                const montoIngreso = parseFloat(item.querySelector('.monto-ingreso').value) || 0;
-                totalIngresos += montoIngreso;
-                html += `<div class="mb-6"><div class="flex justify-between items-center bg-gray-100 p-3 rounded-t-lg"><h3 class="font-bold text-lg">${descIngreso}</h3><span class="font-bold text-lg text-green-600">${formatearMoneda(montoIngreso)}</span></div><table class="w-full text-left"><thead><tr class="border-b bg-gray-50 text-sm text-gray-600"><th class="p-2">Descripción del Gasto</th><th class="p-2 text-right">Monto</th></tr></thead><tbody>`;
-                const gastos = item.querySelectorAll('.gasto-item');
-                if (gastos.length === 0) {
-                    html += `<tr><td colspan="2" class="p-2 text-gray-500 italic">No hay gastos para este ingreso.</td></tr>`;
-                } else {
-                    gastos.forEach(gasto => {
-                        const descGasto = gasto.dataset.descripcion;
-                        const montoGasto = parseFloat(gasto.dataset.monto) || 0;
-                        totalGastos += montoGasto;
-                        html += `<tr class="border-b"><td class="p-2">${descGasto}</td><td class="p-2 text-right">${formatearMoneda(montoGasto)}</td></tr>`;
-                    });
-                }
-                html += `</tbody></table></div>`;
+            revealElements.forEach(element => {
+                observer.observe(element);
             });
-            
-            const balanceFinal = totalIngresos - totalGastos;
-            html += `<div class="mt-12 pt-6 border-t-2 border-gray-300"><div class="flex justify-end"><div class="w-full md:w-1/2"><div class="flex justify-between text-lg mb-2"><span class="font-semibold text-gray-600">Subtotal Ingresos:</span><span class="font-bold">${formatearMoneda(totalIngresos)}</span></div><div class="flex justify-between text-lg mb-4"><span class="font-semibold text-gray-600">Subtotal Gastos:</span><span class="font-bold text-red-600">(${formatearMoneda(totalGastos)})</span></div><div class="flex justify-between text-2xl bg-gray-100 p-4 rounded-lg"><span class="font-bold">TOTAL FINAL:</span><span class="font-extrabold text-blue-600">${formatearMoneda(balanceFinal)}</span></div></div></div></div>`;
-            facturaContenido.innerHTML = html;
-        };
-        
-        btnGenerarFactura.addEventListener('click', () => {
-            generarContenidoFactura();
-            modalFactura.classList.remove('hidden');
         });
-
-        btnCerrarModal.addEventListener('click', () => {
-            modalFactura.classList.add('hidden');
-        });
-
-        btnDescargarPdf.addEventListener('click', () => {
-            const facturaElemento = document.getElementById('factura-contenido');
-            const opt = { margin: [0.5, 0.5, 0.5, 0.5], filename: 'factura_finanzas.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }};
-            html2pdf().from(facturaElemento).set(opt).save();
-        });
-
-        // Cargar datos al iniciar la aplicación
-        cargarDatos();
-    });
     </script>
+
 </body>
 </html>
-

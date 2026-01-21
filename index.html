@@ -3,179 +3,248 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Para Mi Amor</title>
-    
-    <!-- Tailwind CSS -->
+    <title>Stream Player - Professional</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Montserrat:wght@300;400;700&display=swap" rel="stylesheet">
-    
-    <!-- Font Awesome for Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        /* Custom styles */
+        :root {
+            --bg-main: #09090b;
+            --bg-card: #18181b;
+            --accent: #ef4444;
+        }
         body {
-            font-family: 'Montserrat', sans-serif;
-            background-color: #1a1a1a; /* Un fondo oscuro y elegante */
+            background-color: var(--bg-main);
+            color: #f4f4f5;
+            font-family: 'Inter', system-ui, sans-serif;
         }
-        .font-handwriting {
-            font-family: 'Great Vibes', cursive;
+        .search-bar:focus {
+            box-shadow: 0 0 0 2px var(--accent);
         }
-        
-        /* Animación de entrada */
-        .reveal {
+        .video-container {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .video-hidden {
+            transform: scale(0);
             opacity: 0;
-            transform: translateY(30px);
-            transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+            pointer-events: none;
         }
-        .reveal.visible {
-            opacity: 1;
-            transform: translateY(0);
+        .music-grid::-webkit-scrollbar {
+            width: 6px;
         }
-
-        /* Efecto de brillo en el corazón */
-        .heart-glow {
-            animation: pulse 2s infinite;
+        .music-grid::-webkit-scrollbar-thumb {
+            background: #3f3f46;
+            border-radius: 10px;
         }
-
-        @keyframes pulse {
-            0% {
-                transform: scale(1);
-                text-shadow: 0 0 5px #ff005d, 0 0 10px #ff005d;
-            }
-            50% {
-                transform: scale(1.1);
-                text-shadow: 0 0 10px #ff005d, 0 0 20px #ff005d, 0 0 30px #ff005d;
-            }
-            100% {
-                transform: scale(1);
-                text-shadow: 0 0 5px #ff005d, 0 0 10px #ff005d;
-            }
+        .playing-now {
+            border-left: 3px solid var(--accent);
+            background: rgba(239, 68, 68, 0.1);
         }
     </style>
 </head>
-<body class="text-white overflow-x-hidden">
+<body class="h-screen flex flex-col overflow-hidden">
 
-    <!-- Hero Section -->
-    <header class="h-screen w-full flex flex-col justify-center items-center text-center bg-cover bg-center" style="background-image: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('5.jpeg');">
-        <h1 class="font-handwriting text-7xl md:text-9xl text-white drop-shadow-lg">Nuestro Amor</h1>
-        <p class="mt-4 text-xl md:text-2xl text-gray-200 font-light max-w-2xl mx-auto">Una historia escrita en las estrellas y vivida en nuestros corazones.</p>
-        <div class="mt-12">
-            <i class="fas fa-chevron-down text-4xl text-white animate-bounce"></i>
+    <!-- Header / Barra de Búsqueda -->
+    <nav class="p-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/50 backdrop-blur-md">
+        <div class="flex items-center gap-2">
+            <div class="w-8 h-8 bg-red-600 rounded flex items-center justify-center">
+                <i class="fas fa-wave-square text-white"></i>
+            </div>
+            <span class="font-bold text-lg hidden sm:block">OpenStream</span>
         </div>
-    </header>
 
-    <!-- Main Content -->
-    <main class="container mx-auto px-6 py-20">
-
-        <!-- Sección de Poema o Mensaje -->
-        <section class="reveal text-center max-w-3xl mx-auto my-16">
-            <i class="fas fa-quote-left text-4xl text-pink-400 mb-4"></i>
-            <h2 class="font-handwriting text-5xl md:text-6xl mb-6 text-pink-300">Un Verso para Ti</h2>
-            <p class="text-lg md:text-xl text-gray-300 leading-relaxed">
-                "En el lienzo de mis días, tú eres el color más brillante. En la melodía de mi vida, eres la nota más dulce. Cada momento contigo es un tesoro que guardo en el alma."
-            </p>
-            <i class="fas fa-quote-right text-4xl text-pink-400 mt-4 float-right"></i>
-        </section>
-
-        <!-- Sección de Galería de Recuerdos -->
-        <section class="reveal my-24">
-            <h2 class="font-handwriting text-center text-5xl md:text-6xl mb-12 text-pink-300">Galería de Nuestros Momentos</h2>
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                <!-- Imagen 1 -->
-                <div class="group relative overflow-hidden rounded-lg shadow-xl transform hover:scale-105 transition-transform duration-300">
-                    <img src="1.jpeg" alt="Recuerdo 1" class="w-full h-full object-cover">
-                    <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <p class="text-white text-xl font-bold">TE AMO TANTO</p>
-                    </div>
-                </div>
-                <!-- Imagen 2 -->
-                <div class="group relative overflow-hidden rounded-lg shadow-xl transform hover:scale-105 transition-transform duration-300">
-                    <img src="2.jpeg" alt="Recuerdo 2" class="w-full h-full object-cover">
-                    <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <p class="text-white text-xl font-bold">MI ESPOSA</p>
-                    </div>
-                </div>
-                <!-- Imagen 3 -->
-                <div class="group relative overflow-hidden rounded-lg shadow-xl transform hover:scale-105 transition-transform duration-300">
-                    <img src="3.jpeg" alt="Recuerdo 3" class="w-full h-full object-cover">
-                    <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <p class="text-white text-xl font-bold">MI REINA</p>
-                    </div>
-                </div>
-                 <!-- Imagen 4 -->
-                <div class="group relative overflow-hidden rounded-lg shadow-xl transform hover:scale-105 transition-transform duration-300">
-                    <img src="4.jpeg" alt="Recuerdo 4" class="w-full h-full object-cover">
-                    <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <p class="text-white text-xl font-bold">PRINCESA</p>
-                    </div>
-                </div>
-                 <!-- Imagen 5 -->
-                <div class="group relative overflow-hidden rounded-lg shadow-xl transform hover:scale-105 transition-transform duration-300">
-                    <img src="5.jpeg" alt="Recuerdo 5" class="w-full h-full object-cover">
-                    <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <p class="text-white text-xl font-bold">MI PRINCESA </p>
-                    </div>
-                </div>
-                 <!-- Imagen 6 -->
-                <div class="group relative overflow-hidden rounded-lg shadow-xl transform hover:scale-105 transition-transform duration-300">
-                    <img src="6.jpeg" alt="Recuerdo 6" class="w-full h-full object-cover">
-                    <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <p class="text-white text-xl font-bold">AMOR</p>
-                    </div>
-                </div>
+        <div class="flex-1 max-w-xl mx-6">
+            <div class="relative">
+                <input type="text" id="query" placeholder="Buscar canción o artista..." 
+                    class="w-full bg-zinc-900 border-none rounded-lg py-2 pl-10 pr-4 text-sm focus:ring-2 focus:ring-red-500 outline-none">
+                <i class="fas fa-search absolute left-3 top-2.5 text-zinc-500"></i>
             </div>
-        </section>
-        
-        <!-- Sección de Nuestra Historia -->
-        <section class="reveal my-24 bg-gray-800 bg-opacity-40 p-8 md:p-12 rounded-lg shadow-2xl">
-            <h2 class="font-handwriting text-center text-5xl md:text-6xl mb-8 text-pink-300">Nuestra Historia</h2>
-            <div class="flex flex-col md:flex-row items-center gap-8">
-                <div class="md:w-1/2 text-gray-300 text-lg leading-relaxed">
-                    <p class="mb-4">Todo comenzó un día que parecía ordinario, pero que el destino había marcado como el inicio de algo extraordinario. Desde esa primera conversación, supimos que había una conexión especial.</p>
-                    <p class="mb-4">Hemos compartido risas que nos han hecho llorar y hemos sido el apoyo del otro en momentos difíciles. Cada paso, cada aventura, ha fortalecido este lazo que nos une.</p>
-                    <p>Esta no es solo una historia de amor, es nuestra historia. Y lo mejor de todo... es que apenas está comenzando.</p>
-                </div>
-                <div class="md:w-1/2 flex justify-center">
-                    <i class="fas fa-infinity text-9xl text-pink-400 opacity-70"></i>
-                </div>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <button id="toggleView" class="text-zinc-400 hover:text-white text-sm">
+                <i class="fas fa-video"></i>
+            </button>
+        </div>
+    </nav>
+
+    <div class="flex flex-1 overflow-hidden">
+        <!-- Sidebar / Playlist -->
+        <aside class="w-64 border-r border-zinc-800 p-4 hidden md:block overflow-y-auto">
+            <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-4">Descubrir</h3>
+            <ul class="space-y-2 text-sm">
+                <li class="hover:text-red-500 cursor-pointer flex items-center gap-3 p-2 rounded-md"><i class="fas fa-home"></i> Inicio</li>
+                <li class="hover:text-red-500 cursor-pointer flex items-center gap-3 p-2 rounded-md"><i class="fas fa-bolt"></i> Tendencias</li>
+                <li class="hover:text-red-500 cursor-pointer flex items-center gap-3 p-2 rounded-md"><i class="fas fa-clock"></i> Recientes</li>
+            </ul>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-6 overflow-y-auto music-grid">
+            <div id="status" class="text-zinc-500 text-sm mb-4">Escribe algo para buscar música de YouTube...</div>
+            <div id="results" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <!-- Los resultados se cargan aquí -->
             </div>
-        </section>
+        </main>
+    </div>
 
-    </main>
+    <!-- Reproductor Flotante de Video (Ocultable) -->
+    <div id="videoWrapper" class="fixed bottom-24 right-6 w-72 aspect-video bg-black rounded-xl overflow-hidden shadow-2xl border border-zinc-700 video-hidden z-50">
+        <div id="player"></div>
+    </div>
 
-    <!-- Footer -->
-    <footer class="text-center py-10 bg-black bg-opacity-30">
-        <p class="text-2xl mb-4">Con todo mi amor, para ti.</p>
-        <i class="fas fa-heart text-4xl text-pink-500 heart-glow"></i>
-        <p class="mt-4 text-gray-400 text-sm">Hecho con el corazón &copy; 2024</p>
+    <!-- Barra de Control Inferior -->
+    <footer class="h-24 bg-zinc-950 border-t border-zinc-800 p-4 flex items-center justify-between z-50">
+        <div class="flex items-center gap-4 w-1/4">
+            <div id="miniThumb" class="w-12 h-12 bg-zinc-800 rounded-md overflow-hidden bg-cover bg-center"></div>
+            <div class="flex flex-col truncate">
+                <span id="trackTitle" class="text-sm font-medium truncate">No hay selección</span>
+                <span id="trackChannel" class="text-xs text-zinc-500 truncate">--</span>
+            </div>
+        </div>
+
+        <div class="flex flex-col items-center gap-2 flex-1">
+            <div class="flex items-center gap-6">
+                <button class="text-zinc-500 hover:text-white"><i class="fas fa-random"></i></button>
+                <button class="text-zinc-500 hover:text-white"><i class="fas fa-step-backward text-xl"></i></button>
+                <button id="mainPlayBtn" class="w-10 h-10 bg-white text-black rounded-full flex items-center justify-center hover:scale-105 transition">
+                    <i class="fas fa-play ml-1"></i>
+                </button>
+                <button class="text-zinc-500 hover:text-white"><i class="fas fa-step-forward text-xl"></i></button>
+                <button class="text-zinc-500 hover:text-white"><i class="fas fa-redo"></i></button>
+            </div>
+            <div class="w-full max-w-md h-1 bg-zinc-800 rounded-full">
+                <div id="progressBar" class="h-full bg-red-600 rounded-full transition-all" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <div class="w-1/4 flex justify-end items-center gap-4">
+            <i class="fas fa-volume-down text-zinc-500"></i>
+            <div class="w-20 h-1 bg-zinc-800 rounded-full">
+                <div class="h-full bg-zinc-400 rounded-full" style="width: 70%"></div>
+            </div>
+        </div>
     </footer>
 
     <script>
-        // Script para animaciones de entrada al hacer scroll
-        document.addEventListener('DOMContentLoaded', () => {
-            const revealElements = document.querySelectorAll('.reveal');
+        let player;
+        const queryInput = document.getElementById('query');
+        const resultsDiv = document.getElementById('results');
+        const statusText = document.getElementById('status');
+        const videoWrapper = document.getElementById('videoWrapper');
+        const mainPlayBtn = document.getElementById('mainPlayBtn');
 
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        entry.target.classList.add('visible');
-                        observer.unobserve(entry.target);
-                    }
-                });
-            }, {
-                threshold: 0.1
-            });
+        // Cargar YouTube IFrame API
+        var tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        var firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
-            revealElements.forEach(element => {
-                observer.observe(element);
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('player', {
+                height: '100%',
+                width: '100%',
+                videoId: '',
+                playerVars: {
+                    'autoplay': 1,
+                    'controls': 1,
+                    'modestbranding': 1,
+                    'rel': 0
+                },
+                events: {
+                    'onStateChange': onPlayerStateChange
+                }
             });
+        }
+
+        function onPlayerStateChange(event) {
+            const icon = mainPlayBtn.querySelector('i');
+            if (event.data == YT.PlayerState.PLAYING) {
+                icon.className = 'fas fa-pause';
+                updateProgress();
+            } else {
+                icon.className = 'fas fa-play ml-1';
+            }
+        }
+
+        function updateProgress() {
+            if (player && player.getCurrentTime) {
+                const perc = (player.getCurrentTime() / player.getDuration()) * 100;
+                document.getElementById('progressBar').style.width = perc + '%';
+                if (player.getPlayerState() == YT.PlayerState.PLAYING) {
+                    setTimeout(updateProgress, 1000);
+                }
+            }
+        }
+
+        // Buscador usando la API pública de sugerencias y búsqueda de YouTube (vía script)
+        async function searchYouTube() {
+            const text = queryInput.value;
+            if (text.length < 2) return;
+            
+            statusText.innerText = "Buscando en YouTube...";
+            resultsDiv.innerHTML = "";
+
+            try {
+                // Usamos un servicio de búsqueda alternativo para obtener IDs de YouTube
+                // Nota: En entornos restringidos, este fetch suele estar permitido
+                const response = await fetch(`https://pipedapi.kavin.rocks/search?q=${encodeURIComponent(text)}&filter=videos`);
+                const data = await response.json();
+
+                if (data.items && data.items.length > 0) {
+                    statusText.innerText = `Resultados para "${text}"`;
+                    data.items.forEach(video => {
+                        const card = document.createElement('div');
+                        card.className = "bg-zinc-900 rounded-xl p-3 hover:bg-zinc-800 cursor-pointer transition group";
+                        card.innerHTML = `
+                            <div class="relative aspect-video rounded-lg overflow-hidden mb-3">
+                                <img src="${video.thumbnail}" class="w-full h-full object-cover">
+                                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
+                                    <i class="fas fa-play text-white text-2xl"></i>
+                                </div>
+                                <span class="absolute bottom-1 right-1 bg-black/80 text-[10px] px-1 rounded">${video.duration}</span>
+                            </div>
+                            <h4 class="text-sm font-semibold truncate mb-1">${video.title}</h4>
+                            <p class="text-xs text-zinc-500">${video.uploaderName}</p>
+                        `;
+                        card.onclick = () => playVideo(video.url.split('v=')[1], video.title, video.uploaderName, video.thumbnail);
+                        resultsDiv.appendChild(card);
+                    });
+                }
+            } catch (e) {
+                statusText.innerText = "Error de conexión. Intenta con otro término.";
+                console.error(e);
+            }
+        }
+
+        function playVideo(id, title, channel, thumb) {
+            if (!player) return;
+            player.loadVideoById(id);
+            document.getElementById('trackTitle').innerText = title;
+            document.getElementById('trackChannel').innerText = channel;
+            document.getElementById('miniThumb').style.backgroundImage = `url(${thumb})`;
+            
+            // Mostrar el reproductor si está oculto la primera vez
+            if (videoWrapper.classList.contains('video-hidden')) {
+                // videoWrapper.classList.remove('video-hidden');
+            }
+        }
+
+        // Controles de UI
+        queryInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') searchYouTube();
         });
-    </script>
 
+        document.getElementById('toggleView').onclick = () => {
+            videoWrapper.classList.toggle('video-hidden');
+        };
+
+        mainPlayBtn.onclick = () => {
+            const state = player.getPlayerState();
+            if (state == YT.PlayerState.PLAYING) player.pauseVideo();
+            else player.playVideo();
+        };
+
+    </script>
 </body>
 </html>
+

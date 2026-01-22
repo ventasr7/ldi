@@ -10,45 +10,42 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- CONFIGURACIÓN DE FIREBASE ---
-        // Si usas GitHub, pega aquí tus credenciales de Firebase Console
-        let firebaseConfig;
-        try {
-            firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-                apiKey: "TU_API_KEY",
-                authDomain: "TU_PROYECTO.firebaseapp.com",
-                projectId: "TU_PROYECTO_ID",
-                storageBucket: "TU_PROYECTO.appspot.com",
-                messagingSenderId: "TU_SENDER_ID",
-                appId: "TU_APP_ID"
-            };
-        } catch (e) {
-            console.error("Error al cargar la configuración de Firebase:", e);
-        }
+        // --- 1. CONFIGURACIÓN DE FIREBASE (PARA GITHUB) ---
+        // Si usas este código en GitHub, rellena los datos de abajo con los de tu consola de Firebase.
+        const githubConfig = {
+            apiKey: "TU_API_KEY",
+            authDomain: "TU_PROYECTO.firebaseapp.com",
+            projectId: "TU_PROYECTO_ID",
+            storageBucket: "TU_PROYECTO.appspot.com",
+            messagingSenderId: "TU_SENDER_ID",
+            appId: "TU_APP_ID"
+        };
 
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'silo-monitor-industrial-1011';
-        
+        // Detección automática del entorno
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : githubConfig;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'silo-monitor-v2-fixed';
+
+        // Inicialización de Firebase
         let app, auth, db;
-        
-        // Inicialización segura
         try {
             app = initializeApp(firebaseConfig);
             auth = getAuth(app);
             db = getFirestore(app);
         } catch (e) {
-            console.error("Error al inicializar Firebase. Asegúrate de configurar tus credenciales para GitHub.", e);
+            console.error("Error inicializando Firebase:", e);
         }
 
-        // Estado de la Aplicación
+        // Estado Global
         let currentUser = null;
+        let isDbReady = false;
         let siloState = {
             10: { nivelActual: 0, capacidadMax: 500000, producto: 'Harina' },
             11: { nivelActual: 0, capacidadMax: 500000, producto: 'Durum' }
         };
 
-        // --- AUTENTICACIÓN (Regla 3) ---
+        // --- 2. AUTENTICACIÓN (REGLA 3: AUTH PRIMERO) ---
         async function initAuth() {
             if (!auth) return;
             try {
@@ -58,105 +55,92 @@
                     await signInAnonymously(auth);
                 }
             } catch (error) {
-                console.error("Error de Autenticación:", error);
-                showStatus("Error de conexión con el servidor", "red");
+                console.error("Error Auth:", error);
+                showStatus("No hay conexión con la base de datos", "red");
             }
         }
 
-        onAuthStateChanged(auth, (u) => {
-            currentUser = u;
-            if (currentUser) {
-                console.log("Usuario autenticado:", u.uid);
-                setupRealtimeListeners();
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            if (user) {
+                isDbReady = true;
+                setupListeners();
             }
         });
 
-        // --- ESCUCHA DE DATOS (Regla 1 y 2) ---
-        function setupRealtimeListeners() {
+        // --- 3. ESCUCHA EN TIEMPO REAL (REGLA 1 Y 2) ---
+        function setupListeners() {
             if (!currentUser || !db) return;
 
-            // Escuchar Silos (6 segmentos en la ruta del documento)
+            // Escuchar cambios en los Silos
             [10, 11].forEach(id => {
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'silos', `silo_${id}`);
-                onSnapshot(docRef, (docSnap) => {
-                    if (docSnap.exists()) {
-                        siloState[id] = docSnap.data();
+                onSnapshot(docRef, (snap) => {
+                    if (snap.exists()) {
+                        siloState[id] = snap.data();
                         updateUI();
-                        // Actualizar capacidad si el usuario no está escribiendo en el input
+                        // Sincronizar inputs si el usuario no los está tocando
                         const capInput = document.getElementById(`max_cap_${id}`);
-                        if (document.activeElement !== capInput) {
-                            capInput.value = siloState[id].capacidadMax;
-                        }
+                        if (document.activeElement !== capInput) capInput.value = siloState[id].capacidadMax;
                     } else {
-                        // Crear documento inicial si no existe
+                        // Si el silo no existe en la DB, crearlo con valores iniciales
                         setDoc(docRef, siloState[id]);
                     }
-                }, (err) => {
-                    console.error(`Error en Silo ${id}:`, err);
-                    showStatus("Error al leer datos del Silo " + id, "red");
-                });
+                }, (err) => console.error("Error Silo Listen:", err));
             });
 
-            // Escuchar Historial (5 segmentos en la ruta de la colección)
+            // Escuchar Historial de Movimientos
             const logsRef = collection(db, 'artifacts', appId, 'public', 'data', 'movimientos');
-            onSnapshot(logsRef, (querySnapshot) => {
+            onSnapshot(logsRef, (snap) => {
                 const logs = [];
-                querySnapshot.forEach((doc) => logs.push(doc.data()));
-                const sortedLogs = logs.sort((a, b) => b.fecha - a.fecha).slice(0, 20);
-                renderLogs(sortedLogs);
-            }, (err) => console.error("Error en Historial:", err));
+                snap.forEach(d => logs.push(d.data()));
+                // Regla 2: Ordenar en memoria
+                const sorted = logs.sort((a, b) => b.fecha - a.fecha).slice(0, 20);
+                renderLogs(sorted);
+            }, (err) => console.error("Error Logs Listen:", err));
         }
 
-        // --- OPERACIONES ---
-        window.actualizarConfiguracion = async (id) => {
-            if (!currentUser || !db) return;
+        // --- 4. OPERACIONES (GUARDADO DE DATOS) ---
+        window.guardarConfiguracion = async (id) => {
+            if (!isDbReady) return showStatus("Base de datos no conectada", "red");
             const newCap = parseFloat(document.getElementById(`max_cap_${id}`).value);
             const newProd = document.getElementById(`product_${id}`).value;
 
-            if (isNaN(newCap) || newCap <= 0) return showStatus("Capacidad no válida", "red");
+            if (isNaN(newCap) || newCap <= 0) return showStatus("Capacidad inválida", "red");
 
             try {
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'silos', `silo_${id}`);
-                await updateDoc(docRef, { 
-                    capacidadMax: newCap,
-                    producto: newProd 
-                });
-                showStatus(`Silo ${id} actualizado`, 'green');
+                // Usamos setDoc con merge:true para que funcione siempre (exista o no el doc)
+                await setDoc(docRef, { capacidadMax: newCap, producto: newProd }, { merge: true });
+                showStatus(`Silo ${id} configurado correctamente`, "green");
             } catch (e) {
-                showStatus("Error de red al guardar", "red");
+                showStatus("Error al guardar en la nube", "red");
             }
         };
 
         window.operarSilo = async (id, tipo) => {
-            if (!currentUser || !db) return showStatus("No hay conexión con la base de datos", "red");
-            
+            if (!isDbReady) return showStatus("Error: No autenticado", "red");
             const input = document.getElementById(`input_${id}`);
             const cantidad = parseFloat(input.value);
 
-            if (isNaN(cantidad) || cantidad <= 0) {
-                return showStatus("Ingresa una cantidad válida", "red");
-            }
+            if (isNaN(cantidad) || cantidad <= 0) return showStatus("Ingresa una cantidad válida", "red");
 
             const current = siloState[id];
             let nuevoNivel = current.nivelActual;
 
             if (tipo === 'CARGA') {
-                if (current.nivelActual + cantidad > current.capacidadMax) {
-                    return showStatus("Supera la capacidad máxima", "red");
-                }
+                if (current.nivelActual + cantidad > current.capacidadMax) return showStatus("Excede capacidad máxima", "red");
                 nuevoNivel += cantidad;
-                animateFilling(id, current.producto);
+                animateFlow(id, current.producto);
                 showStatus(`Cargando ${cantidad.toLocaleString()} KG...`, "blue");
             } else {
-                if (current.nivelActual - cantidad < 0) {
-                    return showStatus("Stock insuficiente para salida", "red");
-                }
+                if (current.nivelActual - cantidad < 0) return showStatus("Stock insuficiente", "red");
                 nuevoNivel -= cantidad;
                 showStatus(`Retirando ${cantidad.toLocaleString()} KG...`, "orange");
             }
 
             try {
-                // Registrar Movimiento
+                // 1. Guardar el movimiento en el historial
                 await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'movimientos'), {
                     silo: id,
                     tipo: tipo,
@@ -166,31 +150,28 @@
                     usuario: currentUser.uid
                 });
 
-                // Actualizar Nivel del Silo
+                // 2. Actualizar el nivel del silo
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'silos', `silo_${id}`);
-                await updateDoc(docRef, { nivelActual: nuevoNivel });
+                await setDoc(docRef, { nivelActual: nuevoNivel }, { merge: true });
 
                 input.value = '';
-            } catch (error) {
-                console.error("Error en operación:", error);
-                showStatus("Error al procesar los datos", "red");
+            } catch (e) {
+                console.error(e);
+                showStatus("Error al guardar la cantidad", "red");
             }
         };
 
-        // --- ACTUALIZACIÓN DE INTERFAZ ---
+        // --- 5. INTERFAZ Y ANIMACIÓN ---
         function updateUI() {
             [10, 11].forEach(id => {
                 const data = siloState[id];
                 const perc = Math.min((data.nivelActual / data.capacidadMax) * 100, 100);
                 
                 const color = data.producto === 'Durum' ? '#fbbf24' : '#fef3c7';
-                const border = data.producto === 'Durum' ? '#d97706' : '#cbd5e1';
-                
                 const fillEl = document.getElementById(`fill_${id}`);
                 if(fillEl) {
                     fillEl.style.height = `${perc}%`;
                     fillEl.style.backgroundColor = color;
-                    fillEl.style.borderTop = `4px solid ${border}`;
                 }
 
                 document.getElementById(`label_kg_${id}`).innerText = `${Math.round(data.nivelActual).toLocaleString()} KG`;
@@ -198,11 +179,6 @@
                 document.getElementById(`label_prod_${id}`).innerText = data.producto.toUpperCase();
                 document.getElementById(`label_total_${id}`).innerText = `${data.capacidadMax.toLocaleString()} KG`;
                 
-                const prodSelect = document.getElementById(`product_${id}`);
-                if (document.activeElement !== prodSelect) {
-                    prodSelect.value = data.producto;
-                }
-
                 const alertDiv = document.getElementById(`alert_${id}`);
                 if (perc < 15 && data.nivelActual > 0) alertDiv.classList.remove('hidden');
                 else alertDiv.classList.add('hidden');
@@ -211,52 +187,38 @@
 
         function showStatus(msg, color) {
             const status = document.getElementById('status_bar');
+            const map = { red: 'bg-red-600', green: 'bg-green-600', blue: 'bg-blue-600', orange: 'bg-orange-600' };
             status.innerText = msg;
-            
-            const colorMap = {
-                'red': 'bg-red-600',
-                'green': 'bg-green-600',
-                'blue': 'bg-blue-600',
-                'orange': 'bg-orange-600'
-            };
-            
-            status.className = `fixed bottom-6 right-6 px-6 py-4 rounded-2xl text-white font-black shadow-2xl transition-all transform translate-y-0 z-[100] ${colorMap[color] || 'bg-slate-700'}`;
-            
-            setTimeout(() => {
-                status.classList.add('translate-y-20', 'opacity-0');
-            }, 3000);
+            status.className = `fixed bottom-6 right-6 px-6 py-4 rounded-2xl text-white font-black shadow-2xl transition-all transform translate-y-0 z-[100] ${map[color]}`;
+            setTimeout(() => status.classList.add('translate-y-24'), 3000);
         }
 
-        function animateFilling(id, prod) {
+        function animateFlow(id, prod) {
             const stream = document.getElementById(`stream_${id}`);
             const color = prod === 'Durum' ? '#fbbf24' : '#fef3c7';
-            if(stream) {
-                stream.style.background = `linear-gradient(to bottom, transparent, ${color}, transparent)`;
-                stream.classList.remove('hidden');
-                setTimeout(() => stream.classList.add('hidden'), 2000);
-            }
+            stream.style.background = `linear-gradient(to bottom, transparent, ${color}, transparent)`;
+            stream.classList.remove('hidden');
+            setTimeout(() => stream.classList.add('hidden'), 2000);
         }
 
         function renderLogs(logs) {
             const container = document.getElementById('log_container');
             if (logs.length === 0) {
-                container.innerHTML = `<p class="text-slate-500 text-center text-xs mt-10 italic">Sin registros</p>`;
+                container.innerHTML = `<p class="text-slate-500 text-center text-[10px] mt-10">Sin registros</p>`;
                 return;
             }
             container.innerHTML = logs.map(log => `
-                <div class="flex items-center justify-between p-3 border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
+                <div class="flex items-center justify-between p-3 border-b border-slate-800/50">
                     <div class="flex flex-col">
                         <div class="flex items-center gap-2">
                             <span class="text-[9px] font-black px-1.5 py-0.5 rounded ${log.silo === 10 ? 'bg-blue-500' : 'bg-yellow-500'} text-slate-900">S${log.silo}</span>
-                            <span class="${log.tipo === 'CARGA' ? 'text-green-400' : 'text-orange-400'} font-black text-[10px] uppercase">
-                                ${log.tipo === 'CARGA' ? 'Entrada' : 'Salida'}
-                            </span>
+                            <span class="text-[10px] font-bold ${log.tipo === 'CARGA' ? 'text-green-400' : 'text-orange-400'}">${log.tipo}</span>
                         </div>
-                        <span class="text-[10px] text-slate-400 font-bold mt-1">${log.producto.toUpperCase()}</span>
+                        <span class="text-[9px] text-slate-500 uppercase">${log.producto}</span>
                     </div>
                     <div class="text-right">
-                        <p class="font-black text-white text-sm">${log.cantidad.toLocaleString()} KG</p>
-                        <p class="text-[8px] text-slate-500 font-bold">${new Date(log.fecha).toLocaleTimeString()}</p>
+                        <p class="font-black text-white text-xs">${log.cantidad.toLocaleString()} KG</p>
+                        <p class="text-[8px] text-slate-600">${new Date(log.fecha).toLocaleTimeString()}</p>
                     </div>
                 </div>
             `).join('');
@@ -266,196 +228,188 @@
     </script>
 
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; overflow-x: hidden; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; }
         .silo-body { background: linear-gradient(90deg, #1e293b 0%, #334155 50%, #1e293b 100%); border-radius: 12px 12px 0 0; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        .view-glass { background: rgba(0, 0, 0, 0.6); border: 2px solid rgba(255, 255, 255, 0.1); box-shadow: inset 0 0 40px rgba(0,0,0,0.9); border-radius: 4px; }
+        .view-glass { background: rgba(0, 0, 0, 0.6); box-shadow: inset 0 0 30px rgba(0,0,0,0.8); border-radius: 4px; border: 1px solid rgba(255,255,255,0.05); }
         .silo-cone { background: #1e293b; clip-path: polygon(0 0, 100% 0, 80% 100%, 20% 100%); }
-        .filling-stream { width: 8px; height: 100%; position: absolute; left: 50%; transform: translateX(-50%); z-index: 40; animation: flow 0.3s infinite linear; opacity: 0.8; }
-        @keyframes flow { from { transform: translateX(-50%) translateY(-30px); } to { transform: translateX(-50%) translateY(30px); } }
-        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .filling-stream { width: 8px; height: 100%; position: absolute; left: 50%; transform: translateX(-50%); z-index: 40; animation: flow 0.3s infinite linear; }
+        @keyframes flow { from { transform: translateX(-50%) translateY(-20px); } to { transform: translateX(-50%) translateY(20px); } }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
     </style>
 </head>
-<body class="p-4 md:p-6 min-h-screen">
+<body class="p-4 md:p-6">
 
-    <div id="status_bar" class="fixed bottom-6 right-6 opacity-0 translate-y-20 pointer-events-none transition-all duration-300"></div>
+    <div id="status_bar" class="fixed bottom-6 right-6 translate-y-24 transition-all duration-300"></div>
 
     <div class="max-w-7xl mx-auto">
-        <header class="bg-slate-900/80 backdrop-blur-md border border-slate-800 p-6 rounded-[2.5rem] shadow-2xl flex flex-col md:flex-row justify-between items-center mb-8">
+        <header class="bg-slate-900 border border-slate-800 p-6 rounded-[2.5rem] shadow-2xl flex flex-col md:flex-row justify-between items-center mb-8">
             <div class="flex items-center gap-5">
-                <div class="bg-gradient-to-br from-blue-600 to-indigo-800 p-4 rounded-2xl shadow-lg shadow-blue-500/20">
+                <div class="bg-blue-600 p-4 rounded-2xl shadow-lg">
                     <i class="fas fa-industry text-2xl text-white"></i>
                 </div>
                 <div>
-                    <h1 class="text-2xl md:text-3xl font-black tracking-tighter uppercase text-white leading-none">Gestión de Silos 10 & 11</h1>
-                    <div class="flex items-center gap-2 mt-1">
-                        <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                        <p class="text-slate-400 text-[10px] font-bold tracking-widest uppercase text-xs">Monitoreo Industrial en Vivo</p>
-                    </div>
+                    <h1 class="text-2xl font-black tracking-tighter uppercase text-white leading-none">Control Silos 10 & 11</h1>
+                    <p class="text-slate-400 text-[10px] font-bold tracking-widest uppercase mt-1">Sincronización Industrial en Tiempo Real</p>
                 </div>
             </div>
-            <div class="mt-4 md:mt-0 text-right">
-                <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Estado Base de Datos</p>
-                <p class="text-xs font-bold text-blue-400">Firebase Cloud Conectado</p>
+            <div class="hidden md:block text-right">
+                <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest">Estado de Datos</span><br>
+                <span class="text-xs font-bold text-green-400">Cloud Persistence Activo</span>
             </div>
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <!-- Área Visual Silos -->
+            <!-- Área de Visualización -->
             <div class="lg:col-span-9 space-y-6">
-                <div class="bg-slate-900/40 border border-slate-800/60 rounded-[3rem] p-8 md:p-12 shadow-2xl">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-24">
+                <div class="bg-slate-900/50 border border-slate-800 rounded-[3rem] p-8 md:p-12">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-16 md:gap-32">
                         <!-- Silo 10 -->
                         <div class="flex flex-col items-center">
-                            <div class="bg-blue-600 text-white px-10 py-2 rounded-t-2xl font-black text-lg mb-1 shadow-lg uppercase">Silo 10</div>
+                            <div class="bg-blue-600 text-white px-8 py-1.5 rounded-t-xl font-black text-sm mb-1 uppercase tracking-widest shadow-lg">Silo 10</div>
                             <div class="relative w-48 md:w-56 h-80 md:h-96 silo-body border-x-4 border-slate-700/50">
-                                <div class="absolute -top-4 w-full h-8 bg-slate-600 rounded-[100%] border-t border-white/20 z-10 shadow-lg"></div>
                                 <div class="view-glass absolute inset-y-8 left-1/2 -translate-x-1/2 w-24 md:w-28 overflow-hidden flex flex-col justify-end">
                                     <div id="stream_10" class="filling-stream hidden"></div>
-                                    <div id="fill_10" class="w-full transition-all duration-[2500ms] ease-out relative">
-                                        <div class="absolute top-0 w-full h-4 bg-white/30 blur-sm"></div>
-                                    </div>
+                                    <div id="fill_10" class="w-full transition-all duration-[2000ms] ease-out"></div>
                                 </div>
                             </div>
                             <div class="w-48 md:w-56 h-16 silo-cone -mt-1 relative">
-                                <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-4 bg-slate-900 rounded-b-md border-t border-slate-700"></div>
+                                <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-3 bg-slate-950 rounded-b-md border-t border-slate-700"></div>
                             </div>
-                            <div id="alert_10" class="hidden mt-4 bg-red-600 text-white text-[10px] font-black px-6 py-1.5 rounded-full border border-red-400 animate-bounce shadow-lg uppercase">¡Bajo Stock!</div>
+                            <div id="alert_10" class="hidden mt-4 bg-red-600 text-white text-[9px] font-black px-4 py-1.5 rounded-full animate-bounce">STOCK BAJO</div>
                         </div>
 
                         <!-- Silo 11 -->
                         <div class="flex flex-col items-center">
-                            <div class="bg-yellow-500 text-slate-900 px-10 py-2 rounded-t-2xl font-black text-lg mb-1 shadow-lg uppercase">Silo 11</div>
+                            <div class="bg-yellow-500 text-slate-900 px-8 py-1.5 rounded-t-xl font-black text-sm mb-1 uppercase tracking-widest shadow-lg">Silo 11</div>
                             <div class="relative w-48 md:w-56 h-80 md:h-96 silo-body border-x-4 border-slate-700/50">
-                                <div class="absolute -top-4 w-full h-8 bg-slate-600 rounded-[100%] border-t border-white/20 z-10 shadow-lg"></div>
                                 <div class="view-glass absolute inset-y-8 left-1/2 -translate-x-1/2 w-24 md:w-28 overflow-hidden flex flex-col justify-end">
                                     <div id="stream_11" class="filling-stream hidden"></div>
-                                    <div id="fill_11" class="w-full transition-all duration-[2500ms] ease-out relative">
-                                        <div class="absolute top-0 w-full h-4 bg-white/30 blur-sm"></div>
-                                    </div>
+                                    <div id="fill_11" class="w-full transition-all duration-[2000ms] ease-out"></div>
                                 </div>
                             </div>
                             <div class="w-48 md:w-56 h-16 silo-cone -mt-1 relative">
-                                <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-4 bg-slate-900 rounded-b-md border-t border-slate-700"></div>
+                                <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-3 bg-slate-950 rounded-b-md border-t border-slate-700"></div>
                             </div>
-                            <div id="alert_11" class="hidden mt-4 bg-red-600 text-white text-[10px] font-black px-6 py-1.5 rounded-full border border-red-400 animate-bounce shadow-lg uppercase">¡Bajo Stock!</div>
+                            <div id="alert_11" class="hidden mt-4 bg-red-600 text-white text-[9px] font-black px-4 py-1.5 rounded-full animate-bounce">STOCK BAJO</div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Tarjetas de Métricas -->
+                <!-- Métricas -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="bg-slate-900 border border-slate-800 p-6 rounded-[2.5rem] shadow-xl relative overflow-hidden group">
+                    <div class="bg-slate-900 border border-slate-800 p-6 rounded-[2rem] shadow-xl">
                         <div class="flex justify-between items-start mb-4">
                             <div>
-                                <h4 class="text-blue-500 font-black text-[10px] uppercase tracking-widest mb-1">Inventario Silo 10</h4>
-                                <span id="label_prod_10" class="bg-blue-500/20 text-blue-400 text-[10px] px-3 py-1 rounded-full font-black uppercase">...</span>
+                                <h4 class="text-blue-500 font-black text-[9px] uppercase tracking-widest mb-1">Inventario Silo 10</h4>
+                                <span id="label_prod_10" class="bg-blue-500/10 text-blue-400 text-[9px] px-2 py-0.5 rounded-full font-bold italic">...</span>
                             </div>
-                            <span id="label_perc_10" class="text-3xl font-black text-blue-500 italic">0%</span>
+                            <span id="label_perc_10" class="text-2xl font-black text-blue-500">0%</span>
                         </div>
-                        <div id="label_kg_10" class="text-5xl font-black text-white tabular-nums mb-3 tracking-tighter">0 KG</div>
-                        <div class="flex items-center justify-between border-t border-slate-800 pt-4 mt-2">
-                            <span class="text-[10px] font-bold text-slate-500 uppercase">Capacidad de Diseño</span>
-                            <span id="label_total_10" class="text-sm font-black text-slate-400 tracking-tight">0 KG</span>
+                        <div id="label_kg_10" class="text-4xl font-black text-white tabular-nums mb-2 tracking-tighter">0 KG</div>
+                        <div class="flex justify-between border-t border-slate-800 pt-3 mt-1 text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+                            <span>Capacidad Máxima</span>
+                            <span id="label_total_10" class="text-slate-400">0 KG</span>
                         </div>
                     </div>
 
-                    <div class="bg-slate-900 border border-slate-800 p-6 rounded-[2.5rem] shadow-xl relative overflow-hidden group">
+                    <div class="bg-slate-900 border border-slate-800 p-6 rounded-[2rem] shadow-xl">
                         <div class="flex justify-between items-start mb-4">
                             <div>
-                                <h4 class="text-yellow-500 font-black text-[10px] uppercase tracking-widest mb-1">Inventario Silo 11</h4>
-                                <span id="label_prod_11" class="bg-yellow-500/20 text-yellow-500 text-[10px] px-3 py-1 rounded-full font-black uppercase">...</span>
+                                <h4 class="text-yellow-500 font-black text-[9px] uppercase tracking-widest mb-1">Inventario Silo 11</h4>
+                                <span id="label_prod_11" class="bg-yellow-500/10 text-yellow-500 text-[9px] px-2 py-0.5 rounded-full font-bold italic">...</span>
                             </div>
-                            <span id="label_perc_11" class="text-3xl font-black text-yellow-500 italic">0%</span>
+                            <span id="label_perc_11" class="text-2xl font-black text-yellow-500">0%</span>
                         </div>
-                        <div id="label_kg_11" class="text-5xl font-black text-white tabular-nums mb-3 tracking-tighter">0 KG</div>
-                        <div class="flex items-center justify-between border-t border-slate-800 pt-4 mt-2">
-                            <span class="text-[10px] font-bold text-slate-500 uppercase">Capacidad de Diseño</span>
-                            <span id="label_total_11" class="text-sm font-black text-slate-400 tracking-tight">0 KG</span>
+                        <div id="label_kg_11" class="text-4xl font-black text-white tabular-nums mb-2 tracking-tighter">0 KG</div>
+                        <div class="flex justify-between border-t border-slate-800 pt-3 mt-1 text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+                            <span>Capacidad Máxima</span>
+                            <span id="label_total_11" class="text-slate-400">0 KG</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Panel de Control Lateral -->
+            <!-- Panel de Control -->
             <div class="lg:col-span-3 space-y-6">
-                <!-- Registro de Movimientos -->
-                <div class="bg-slate-900 border border-slate-800 p-6 rounded-[2.5rem] shadow-xl flex flex-col h-[450px]">
-                    <h3 class="font-black text-white text-xs mb-4 border-b border-slate-800 pb-3 flex items-center justify-between uppercase tracking-widest">
+                <!-- Historial -->
+                <div class="bg-slate-900 border border-slate-800 p-6 rounded-[2rem] shadow-xl flex flex-col h-[400px]">
+                    <h3 class="font-black text-white text-[10px] mb-4 border-b border-slate-800 pb-3 flex items-center justify-between uppercase tracking-widest">
                         <span>Historial</span>
                         <i class="fas fa-history text-slate-600"></i>
                     </h3>
-                    <div id="log_container" class="space-y-1 flex-1 overflow-y-auto custom-scrollbar pr-1">
-                        <p class="text-slate-500 text-center text-xs mt-10 italic">Cargando...</p>
+                    <div id="log_container" class="space-y-1 flex-1 overflow-y-auto custom-scrollbar">
+                        <p class="text-slate-500 text-center text-[10px] mt-10 italic">Consultando datos...</p>
                     </div>
                 </div>
 
-                <!-- Control Silo 10 -->
-                <div class="bg-white text-slate-900 p-6 rounded-[2.5rem] shadow-2xl">
-                    <h3 class="font-black text-xs uppercase mb-4 flex items-center gap-2">
+                <!-- Panel Silo 10 -->
+                <div class="bg-white text-slate-900 p-5 rounded-[2.5rem] shadow-2xl">
+                    <h3 class="font-black text-[10px] uppercase mb-3 flex items-center gap-2">
                         <span class="w-3 h-3 rounded-full bg-blue-600"></span> Silo 10
                     </h3>
-                    <div class="space-y-4">
-                        <div class="grid grid-cols-2 gap-3">
+                    <div class="space-y-3">
+                        <div class="grid grid-cols-2 gap-2">
                             <div>
-                                <label class="text-[9px] font-black text-slate-400 uppercase">Producto</label>
-                                <select id="product_10" onchange="actualizarConfiguracion(10)" class="w-full bg-slate-100 p-2 rounded-xl text-xs font-bold border-none">
+                                <label class="text-[8px] font-black text-slate-400 uppercase">Producto</label>
+                                <select id="product_10" onchange="guardarConfiguracion(10)" class="w-full bg-slate-100 p-1.5 rounded-lg text-xs font-bold border-none">
                                     <option value="Harina">Harina</option>
                                     <option value="Durum">Durum</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="text-[9px] font-black text-slate-400 uppercase">Máximo</label>
+                                <label class="text-[8px] font-black text-slate-400 uppercase">Capacidad</label>
                                 <div class="flex gap-1">
-                                    <input id="max_cap_10" type="number" class="w-full bg-slate-100 p-2 rounded-xl text-xs font-bold outline-none">
-                                    <button onclick="actualizarConfiguracion(10)" class="bg-blue-600 text-white p-2 rounded-xl"><i class="fas fa-save"></i></button>
+                                    <input id="max_cap_10" type="number" class="w-full bg-slate-100 p-1.5 rounded-lg text-xs font-bold outline-none">
+                                    <button onclick="guardarConfiguracion(10)" class="bg-blue-600 text-white p-1.5 rounded-lg"><i class="fas fa-save text-[10px]"></i></button>
                                 </div>
                             </div>
                         </div>
-                        <input id="input_10" type="number" class="w-full bg-slate-100 p-4 rounded-2xl text-2xl font-black outline-none" placeholder="0">
-                        <div class="grid grid-cols-2 gap-3">
-                            <button onclick="operarSilo(10, 'CARGA')" class="bg-blue-600 text-white font-black py-3 rounded-2xl text-xs uppercase">Cargar</button>
-                            <button onclick="operarSilo(10, 'CONSUMO')" class="bg-slate-800 text-white font-black py-3 rounded-2xl text-xs uppercase">Consumir</button>
+                        <input id="input_10" type="number" class="w-full bg-slate-100 p-4 rounded-2xl text-2xl font-black outline-none focus:ring-2 focus:ring-blue-600" placeholder="0 KG">
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="operarSilo(10, 'CARGA')" class="bg-blue-600 text-white font-black py-3 rounded-xl text-[10px] uppercase">Cargar</button>
+                            <button onclick="operarSilo(10, 'SALIDA')" class="bg-slate-800 text-white font-black py-3 rounded-xl text-[10px] uppercase">Retirar</button>
                         </div>
                     </div>
                 </div>
 
-                <!-- Control Silo 11 -->
-                <div class="bg-white text-slate-900 p-6 rounded-[2.5rem] shadow-2xl">
-                    <h3 class="font-black text-xs uppercase mb-4 flex items-center gap-2">
+                <!-- Panel Silo 11 -->
+                <div class="bg-white text-slate-900 p-5 rounded-[2.5rem] shadow-2xl">
+                    <h3 class="font-black text-[10px] uppercase mb-3 flex items-center gap-2">
                         <span class="w-3 h-3 rounded-full bg-yellow-500"></span> Silo 11
                     </h3>
-                    <div class="space-y-4">
-                        <div class="grid grid-cols-2 gap-3">
+                    <div class="space-y-3">
+                        <div class="grid grid-cols-2 gap-2">
                             <div>
-                                <label class="text-[9px] font-black text-slate-400 uppercase">Producto</label>
-                                <select id="product_11" onchange="actualizarConfiguracion(11)" class="w-full bg-slate-100 p-2 rounded-xl text-xs font-bold border-none">
+                                <label class="text-[8px] font-black text-slate-400 uppercase">Producto</label>
+                                <select id="product_11" onchange="guardarConfiguracion(11)" class="w-full bg-slate-100 p-1.5 rounded-lg text-xs font-bold border-none">
                                     <option value="Durum">Durum</option>
                                     <option value="Harina">Harina</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="text-[9px] font-black text-slate-400 uppercase">Máximo</label>
+                                <label class="text-[8px] font-black text-slate-400 uppercase">Capacidad</label>
                                 <div class="flex gap-1">
-                                    <input id="max_cap_11" type="number" class="w-full bg-slate-100 p-2 rounded-xl text-xs font-bold outline-none">
-                                    <button onclick="actualizarConfiguracion(11)" class="bg-yellow-500 p-2 rounded-xl"><i class="fas fa-save"></i></button>
+                                    <input id="max_cap_11" type="number" class="w-full bg-slate-100 p-1.5 rounded-lg text-xs font-bold outline-none">
+                                    <button onclick="guardarConfiguracion(11)" class="bg-yellow-500 p-1.5 rounded-lg"><i class="fas fa-save text-[10px]"></i></button>
                                 </div>
                             </div>
                         </div>
-                        <input id="input_11" type="number" class="w-full bg-slate-100 p-4 rounded-2xl text-2xl font-black outline-none" placeholder="0">
-                        <div class="grid grid-cols-2 gap-3">
-                            <button onclick="operarSilo(11, 'CARGA')" class="bg-yellow-500 font-black py-3 rounded-2xl text-xs uppercase">Cargar</button>
-                            <button onclick="operarSilo(11, 'CONSUMO')" class="bg-slate-800 text-white font-black py-3 rounded-2xl text-xs uppercase">Consumir</button>
+                        <input id="input_11" type="number" class="w-full bg-slate-100 p-4 rounded-2xl text-2xl font-black outline-none focus:ring-2 focus:ring-yellow-500" placeholder="0 KG">
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="operarSilo(11, 'CARGA')" class="bg-yellow-500 font-black py-3 rounded-xl text-[10px] uppercase">Cargar</button>
+                            <button onclick="operarSilo(11, 'SALIDA')" class="bg-slate-800 text-white font-black py-3 rounded-xl text-[10px] uppercase">Retirar</button>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
         
-        <footer class="mt-12 text-center text-slate-600 text-[10px] font-bold uppercase tracking-[0.3em]">
-            Industrial Pro Monitoring System v2.6 • GitHub Ready
+        <footer class="mt-12 text-center text-slate-600 text-[10px] font-bold uppercase tracking-[0.4em] pb-10">
+            Industrial Pro Monitoring System • Versión 2.7 • 2024
         </footer>
     </div>
+
 </body>
 </html>

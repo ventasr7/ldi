@@ -12,22 +12,45 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Global Variables & Firebase Setup
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'silo-monitor-1011';
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+        // --- CONFIGURACIÓN DE FIREBASE ---
+        // Si usas GitHub, pega aquí tus credenciales de Firebase Console
+        let firebaseConfig;
+        try {
+            firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+                apiKey: "TU_API_KEY",
+                authDomain: "TU_PROYECTO.firebaseapp.com",
+                projectId: "TU_PROYECTO_ID",
+                storageBucket: "TU_PROYECTO.appspot.com",
+                messagingSenderId: "TU_SENDER_ID",
+                appId: "TU_APP_ID"
+            };
+        } catch (e) {
+            console.error("Error al cargar la configuración de Firebase:", e);
+        }
 
-        // App State
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'silo-monitor-industrial-1011';
+        
+        let app, auth, db;
+        
+        // Inicialización segura
+        try {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+        } catch (e) {
+            console.error("Error al inicializar Firebase. Asegúrate de configurar tus credenciales para GitHub.", e);
+        }
+
+        // Estado de la Aplicación
         let currentUser = null;
         let siloState = {
             10: { nivelActual: 0, capacidadMax: 500000, producto: 'Harina' },
             11: { nivelActual: 0, capacidadMax: 500000, producto: 'Durum' }
         };
 
-        // --- AUTHENTICATION (Rule 3) ---
+        // --- AUTENTICACIÓN (Regla 3) ---
         async function initAuth() {
+            if (!auth) return;
             try {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await signInWithCustomToken(auth, __initial_auth_token);
@@ -35,58 +58,62 @@
                     await signInAnonymously(auth);
                 }
             } catch (error) {
-                console.error("Auth Error:", error);
+                console.error("Error de Autenticación:", error);
+                showStatus("Error de conexión con el servidor", "red");
             }
         }
 
         onAuthStateChanged(auth, (u) => {
             currentUser = u;
             if (currentUser) {
+                console.log("Usuario autenticado:", u.uid);
                 setupRealtimeListeners();
             }
         });
 
-        // --- FIRESTORE LISTENERS (Rule 1 & 2) ---
+        // --- ESCUCHA DE DATOS (Regla 1 y 2) ---
         function setupRealtimeListeners() {
-            if (!currentUser) return;
+            if (!currentUser || !db) return;
 
-            // Listen to Silos - Path corrected to 6 segments for doc()
+            // Escuchar Silos (6 segmentos en la ruta del documento)
             [10, 11].forEach(id => {
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'silos', `silo_${id}`);
                 onSnapshot(docRef, (docSnap) => {
                     if (docSnap.exists()) {
                         siloState[id] = docSnap.data();
                         updateUI();
-                        // Update inputs if not focused
+                        // Actualizar capacidad si el usuario no está escribiendo en el input
                         const capInput = document.getElementById(`max_cap_${id}`);
                         if (document.activeElement !== capInput) {
                             capInput.value = siloState[id].capacidadMax;
                         }
                     } else {
-                        // Initialize if doesn't exist
+                        // Crear documento inicial si no existe
                         setDoc(docRef, siloState[id]);
                     }
-                }, (err) => console.error(`Error Silo ${id}:`, err));
+                }, (err) => {
+                    console.error(`Error en Silo ${id}:`, err);
+                    showStatus("Error al leer datos del Silo " + id, "red");
+                });
             });
 
-            // Listen to Logs (History) - Path is 5 segments for collection()
+            // Escuchar Historial (5 segmentos en la ruta de la colección)
             const logsRef = collection(db, 'artifacts', appId, 'public', 'data', 'movimientos');
             onSnapshot(logsRef, (querySnapshot) => {
                 const logs = [];
                 querySnapshot.forEach((doc) => logs.push(doc.data()));
-                // Sort in memory (Rule 2)
                 const sortedLogs = logs.sort((a, b) => b.fecha - a.fecha).slice(0, 20);
                 renderLogs(sortedLogs);
-            }, (err) => console.error("Error Logs:", err));
+            }, (err) => console.error("Error en Historial:", err));
         }
 
-        // --- OPERATIONS ---
+        // --- OPERACIONES ---
         window.actualizarConfiguracion = async (id) => {
-            if (!currentUser) return;
+            if (!currentUser || !db) return;
             const newCap = parseFloat(document.getElementById(`max_cap_${id}`).value);
             const newProd = document.getElementById(`product_${id}`).value;
 
-            if (isNaN(newCap) || newCap <= 0) return showStatus(`Capacidad inválida en Silo ${id}`, 'red');
+            if (isNaN(newCap) || newCap <= 0) return showStatus("Capacidad no válida", "red");
 
             try {
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'silos', `silo_${id}`);
@@ -94,19 +121,20 @@
                     capacidadMax: newCap,
                     producto: newProd 
                 });
-                showStatus(`Silo ${id} configurado`, 'green');
+                showStatus(`Silo ${id} actualizado`, 'green');
             } catch (e) {
-                showStatus("Error al guardar configuración", "red");
+                showStatus("Error de red al guardar", "red");
             }
         };
 
         window.operarSilo = async (id, tipo) => {
-            if (!currentUser) return;
+            if (!currentUser || !db) return showStatus("No hay conexión con la base de datos", "red");
+            
             const input = document.getElementById(`input_${id}`);
             const cantidad = parseFloat(input.value);
 
             if (isNaN(cantidad) || cantidad <= 0) {
-                return showStatus("Ingrese cantidad válida", "red");
+                return showStatus("Ingresa una cantidad válida", "red");
             }
 
             const current = siloState[id];
@@ -114,21 +142,21 @@
 
             if (tipo === 'CARGA') {
                 if (current.nivelActual + cantidad > current.capacidadMax) {
-                    return showStatus("Excede capacidad máxima", "red");
+                    return showStatus("Supera la capacidad máxima", "red");
                 }
                 nuevoNivel += cantidad;
                 animateFilling(id, current.producto);
                 showStatus(`Cargando ${cantidad.toLocaleString()} KG...`, "blue");
             } else {
                 if (current.nivelActual - cantidad < 0) {
-                    return showStatus("Stock insuficiente", "red");
+                    return showStatus("Stock insuficiente para salida", "red");
                 }
                 nuevoNivel -= cantidad;
-                showStatus(`Consumiendo ${cantidad.toLocaleString()} KG...`, "orange");
+                showStatus(`Retirando ${cantidad.toLocaleString()} KG...`, "orange");
             }
 
             try {
-                // Path corrected for collection (5 segments)
+                // Registrar Movimiento
                 await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'movimientos'), {
                     silo: id,
                     tipo: tipo,
@@ -138,25 +166,25 @@
                     usuario: currentUser.uid
                 });
 
-                // Path corrected for doc (6 segments)
+                // Actualizar Nivel del Silo
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'silos', `silo_${id}`);
                 await updateDoc(docRef, { nivelActual: nuevoNivel });
 
                 input.value = '';
             } catch (error) {
-                console.error(error);
-                showStatus("Error en la operación", "red");
+                console.error("Error en operación:", error);
+                showStatus("Error al procesar los datos", "red");
             }
         };
 
-        // --- UI UPDATES ---
+        // --- ACTUALIZACIÓN DE INTERFAZ ---
         function updateUI() {
             [10, 11].forEach(id => {
                 const data = siloState[id];
                 const perc = Math.min((data.nivelActual / data.capacidadMax) * 100, 100);
                 
                 const color = data.producto === 'Durum' ? '#fbbf24' : '#fef3c7';
-                const border = data.producto === 'Durum' ? '#d97706' : '#d1d5db';
+                const border = data.producto === 'Durum' ? '#d97706' : '#cbd5e1';
                 
                 const fillEl = document.getElementById(`fill_${id}`);
                 if(fillEl) {
@@ -202,15 +230,17 @@
         function animateFilling(id, prod) {
             const stream = document.getElementById(`stream_${id}`);
             const color = prod === 'Durum' ? '#fbbf24' : '#fef3c7';
-            stream.style.background = `linear-gradient(to bottom, transparent, ${color}, transparent)`;
-            stream.classList.remove('hidden');
-            setTimeout(() => stream.classList.add('hidden'), 2000);
+            if(stream) {
+                stream.style.background = `linear-gradient(to bottom, transparent, ${color}, transparent)`;
+                stream.classList.remove('hidden');
+                setTimeout(() => stream.classList.add('hidden'), 2000);
+            }
         }
 
         function renderLogs(logs) {
             const container = document.getElementById('log_container');
             if (logs.length === 0) {
-                container.innerHTML = `<p class="text-slate-500 text-center text-xs mt-10 italic">Sin movimientos</p>`;
+                container.innerHTML = `<p class="text-slate-500 text-center text-xs mt-10 italic">Sin registros</p>`;
                 return;
             }
             container.innerHTML = logs.map(log => `
@@ -238,32 +268,12 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; overflow-x: hidden; }
-        
-        .silo-body {
-            background: linear-gradient(90deg, #1e293b 0%, #334155 50%, #1e293b 100%);
-            border-radius: 12px 12px 0 0;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
-        .view-glass {
-            background: rgba(0, 0, 0, 0.6);
-            border: 2px solid rgba(255, 255, 255, 0.1);
-            box-shadow: inset 0 0 40px rgba(0,0,0,0.9);
-            border-radius: 4px;
-        }
-        .silo-cone {
-            background: #1e293b;
-            clip-path: polygon(0 0, 100% 0, 80% 100%, 20% 100%);
-        }
-        .filling-stream {
-            width: 8px; height: 100%; position: absolute; left: 50%; transform: translateX(-50%); z-index: 40;
-            animation: flow 0.3s infinite linear; opacity: 0.8;
-        }
-        @keyframes flow { 
-            from { transform: translateX(-50%) translateY(-30px); } 
-            to { transform: translateX(-50%) translateY(30px); } 
-        }
+        .silo-body { background: linear-gradient(90deg, #1e293b 0%, #334155 50%, #1e293b 100%); border-radius: 12px 12px 0 0; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .view-glass { background: rgba(0, 0, 0, 0.6); border: 2px solid rgba(255, 255, 255, 0.1); box-shadow: inset 0 0 40px rgba(0,0,0,0.9); border-radius: 4px; }
+        .silo-cone { background: #1e293b; clip-path: polygon(0 0, 100% 0, 80% 100%, 20% 100%); }
+        .filling-stream { width: 8px; height: 100%; position: absolute; left: 50%; transform: translateX(-50%); z-index: 40; animation: flow 0.3s infinite linear; opacity: 0.8; }
+        @keyframes flow { from { transform: translateX(-50%) translateY(-30px); } to { transform: translateX(-50%) translateY(30px); } }
         .custom-scrollbar::-webkit-scrollbar { width: 5px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #0f172a; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
     </style>
 </head>
@@ -281,23 +291,24 @@
                     <h1 class="text-2xl md:text-3xl font-black tracking-tighter uppercase text-white leading-none">Gestión de Silos 10 & 11</h1>
                     <div class="flex items-center gap-2 mt-1">
                         <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                        <p class="text-slate-400 text-[10px] font-bold tracking-widest uppercase">Sistema Industrial Pro • Live Data</p>
+                        <p class="text-slate-400 text-[10px] font-bold tracking-widest uppercase text-xs">Monitoreo Industrial en Vivo</p>
                     </div>
                 </div>
             </div>
             <div class="mt-4 md:mt-0 text-right">
-                <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Sincronización Cloud</p>
-                <p class="text-xs font-bold text-blue-400">Firebase Firestore Online</p>
+                <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Estado Base de Datos</p>
+                <p class="text-xs font-bold text-blue-400">Firebase Cloud Conectado</p>
             </div>
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- Área Visual Silos -->
             <div class="lg:col-span-9 space-y-6">
                 <div class="bg-slate-900/40 border border-slate-800/60 rounded-[3rem] p-8 md:p-12 shadow-2xl">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-24">
                         <!-- Silo 10 -->
                         <div class="flex flex-col items-center">
-                            <div class="bg-blue-600 text-white px-10 py-2 rounded-t-2xl font-black text-lg mb-1 shadow-lg uppercase tracking-widest">Silo 10</div>
+                            <div class="bg-blue-600 text-white px-10 py-2 rounded-t-2xl font-black text-lg mb-1 shadow-lg uppercase">Silo 10</div>
                             <div class="relative w-48 md:w-56 h-80 md:h-96 silo-body border-x-4 border-slate-700/50">
                                 <div class="absolute -top-4 w-full h-8 bg-slate-600 rounded-[100%] border-t border-white/20 z-10 shadow-lg"></div>
                                 <div class="view-glass absolute inset-y-8 left-1/2 -translate-x-1/2 w-24 md:w-28 overflow-hidden flex flex-col justify-end">
@@ -310,12 +321,12 @@
                             <div class="w-48 md:w-56 h-16 silo-cone -mt-1 relative">
                                 <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-4 bg-slate-900 rounded-b-md border-t border-slate-700"></div>
                             </div>
-                            <div id="alert_10" class="hidden mt-4 bg-red-600 text-white text-[10px] font-black px-6 py-1.5 rounded-full border border-red-400 animate-bounce shadow-lg uppercase">¡Stock Crítico!</div>
+                            <div id="alert_10" class="hidden mt-4 bg-red-600 text-white text-[10px] font-black px-6 py-1.5 rounded-full border border-red-400 animate-bounce shadow-lg uppercase">¡Bajo Stock!</div>
                         </div>
 
                         <!-- Silo 11 -->
                         <div class="flex flex-col items-center">
-                            <div class="bg-yellow-500 text-slate-900 px-10 py-2 rounded-t-2xl font-black text-lg mb-1 shadow-lg uppercase tracking-widest">Silo 11</div>
+                            <div class="bg-yellow-500 text-slate-900 px-10 py-2 rounded-t-2xl font-black text-lg mb-1 shadow-lg uppercase">Silo 11</div>
                             <div class="relative w-48 md:w-56 h-80 md:h-96 silo-body border-x-4 border-slate-700/50">
                                 <div class="absolute -top-4 w-full h-8 bg-slate-600 rounded-[100%] border-t border-white/20 z-10 shadow-lg"></div>
                                 <div class="view-glass absolute inset-y-8 left-1/2 -translate-x-1/2 w-24 md:w-28 overflow-hidden flex flex-col justify-end">
@@ -328,23 +339,24 @@
                             <div class="w-48 md:w-56 h-16 silo-cone -mt-1 relative">
                                 <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-4 bg-slate-900 rounded-b-md border-t border-slate-700"></div>
                             </div>
-                            <div id="alert_11" class="hidden mt-4 bg-red-600 text-white text-[10px] font-black px-6 py-1.5 rounded-full border border-red-400 animate-bounce shadow-lg uppercase">¡Stock Crítico!</div>
+                            <div id="alert_11" class="hidden mt-4 bg-red-600 text-white text-[10px] font-black px-6 py-1.5 rounded-full border border-red-400 animate-bounce shadow-lg uppercase">¡Bajo Stock!</div>
                         </div>
                     </div>
                 </div>
 
+                <!-- Tarjetas de Métricas -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="bg-slate-900 border border-slate-800 p-6 rounded-[2.5rem] shadow-xl relative overflow-hidden group">
                         <div class="flex justify-between items-start mb-4">
                             <div>
-                                <h4 class="text-blue-500 font-black text-[10px] uppercase tracking-[0.2em] mb-1">Inventario Silo 10</h4>
+                                <h4 class="text-blue-500 font-black text-[10px] uppercase tracking-widest mb-1">Inventario Silo 10</h4>
                                 <span id="label_prod_10" class="bg-blue-500/20 text-blue-400 text-[10px] px-3 py-1 rounded-full font-black uppercase">...</span>
                             </div>
                             <span id="label_perc_10" class="text-3xl font-black text-blue-500 italic">0%</span>
                         </div>
                         <div id="label_kg_10" class="text-5xl font-black text-white tabular-nums mb-3 tracking-tighter">0 KG</div>
                         <div class="flex items-center justify-between border-t border-slate-800 pt-4 mt-2">
-                            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Capacidad Máxima</span>
+                            <span class="text-[10px] font-bold text-slate-500 uppercase">Capacidad de Diseño</span>
                             <span id="label_total_10" class="text-sm font-black text-slate-400 tracking-tight">0 KG</span>
                         </div>
                     </div>
@@ -352,31 +364,34 @@
                     <div class="bg-slate-900 border border-slate-800 p-6 rounded-[2.5rem] shadow-xl relative overflow-hidden group">
                         <div class="flex justify-between items-start mb-4">
                             <div>
-                                <h4 class="text-yellow-500 font-black text-[10px] uppercase tracking-[0.2em] mb-1">Inventario Silo 11</h4>
+                                <h4 class="text-yellow-500 font-black text-[10px] uppercase tracking-widest mb-1">Inventario Silo 11</h4>
                                 <span id="label_prod_11" class="bg-yellow-500/20 text-yellow-500 text-[10px] px-3 py-1 rounded-full font-black uppercase">...</span>
                             </div>
                             <span id="label_perc_11" class="text-3xl font-black text-yellow-500 italic">0%</span>
                         </div>
                         <div id="label_kg_11" class="text-5xl font-black text-white tabular-nums mb-3 tracking-tighter">0 KG</div>
                         <div class="flex items-center justify-between border-t border-slate-800 pt-4 mt-2">
-                            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Capacidad Máxima</span>
+                            <span class="text-[10px] font-bold text-slate-500 uppercase">Capacidad de Diseño</span>
                             <span id="label_total_11" class="text-sm font-black text-slate-400 tracking-tight">0 KG</span>
                         </div>
                     </div>
                 </div>
             </div>
 
+            <!-- Panel de Control Lateral -->
             <div class="lg:col-span-3 space-y-6">
+                <!-- Registro de Movimientos -->
                 <div class="bg-slate-900 border border-slate-800 p-6 rounded-[2.5rem] shadow-xl flex flex-col h-[450px]">
                     <h3 class="font-black text-white text-xs mb-4 border-b border-slate-800 pb-3 flex items-center justify-between uppercase tracking-widest">
-                        <span>Movimientos</span>
-                        <i class="fas fa-history text-slate-600 text-sm"></i>
+                        <span>Historial</span>
+                        <i class="fas fa-history text-slate-600"></i>
                     </h3>
                     <div id="log_container" class="space-y-1 flex-1 overflow-y-auto custom-scrollbar pr-1">
-                        <p class="text-slate-500 text-center text-xs mt-10 italic">Consultando...</p>
+                        <p class="text-slate-500 text-center text-xs mt-10 italic">Cargando...</p>
                     </div>
                 </div>
 
+                <!-- Control Silo 10 -->
                 <div class="bg-white text-slate-900 p-6 rounded-[2.5rem] shadow-2xl">
                     <h3 class="font-black text-xs uppercase mb-4 flex items-center gap-2">
                         <span class="w-3 h-3 rounded-full bg-blue-600"></span> Silo 10
@@ -391,7 +406,7 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="text-[9px] font-black text-slate-400 uppercase">Cap. Máx</label>
+                                <label class="text-[9px] font-black text-slate-400 uppercase">Máximo</label>
                                 <div class="flex gap-1">
                                     <input id="max_cap_10" type="number" class="w-full bg-slate-100 p-2 rounded-xl text-xs font-bold outline-none">
                                     <button onclick="actualizarConfiguracion(10)" class="bg-blue-600 text-white p-2 rounded-xl"><i class="fas fa-save"></i></button>
@@ -406,6 +421,7 @@
                     </div>
                 </div>
 
+                <!-- Control Silo 11 -->
                 <div class="bg-white text-slate-900 p-6 rounded-[2.5rem] shadow-2xl">
                     <h3 class="font-black text-xs uppercase mb-4 flex items-center gap-2">
                         <span class="w-3 h-3 rounded-full bg-yellow-500"></span> Silo 11
@@ -420,7 +436,7 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="text-[9px] font-black text-slate-400 uppercase">Cap. Máx</label>
+                                <label class="text-[9px] font-black text-slate-400 uppercase">Máximo</label>
                                 <div class="flex gap-1">
                                     <input id="max_cap_11" type="number" class="w-full bg-slate-100 p-2 rounded-xl text-xs font-bold outline-none">
                                     <button onclick="actualizarConfiguracion(11)" class="bg-yellow-500 p-2 rounded-xl"><i class="fas fa-save"></i></button>
@@ -438,7 +454,7 @@
         </div>
         
         <footer class="mt-12 text-center text-slate-600 text-[10px] font-bold uppercase tracking-[0.3em]">
-            Industrial Pro Monitoring System v2.5
+            Industrial Pro Monitoring System v2.6 • GitHub Ready
         </footer>
     </div>
 </body>
